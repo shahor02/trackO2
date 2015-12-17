@@ -38,6 +38,7 @@ namespace AliceO2 {
       class TrackPar { // track parameterization, kinematics only
       public:
 	TrackPar(float x,float alpha, const float *par);
+	TrackPar(const float xyz[3],const float pxpypz[3],int sign);
 	TrackPar(const TrackPar& src);
 	~TrackPar() {}
 	TrackPar& operator=(const TrackPar& src);

@@ -16,6 +16,11 @@ namespace AliceO2 {
       const float kPI     = 3.14159274101257324e+00f;
       const float k2PI    = 2.f*kPI;
       const float kPIhalf = 0.5f*kPI;      
+      const float kRad2Deg = 180.f/kPI;
+      const float kDeg2Rad = kPI/180.f;
+
+      const int   kNSectors   = 18;
+      const float kSectorSpan = 360./kNSectors;
 
       // conversion from B(kGaus) to curvature for 1GeV pt
       const float kB2C     = -0.299792458e-3;

@@ -50,6 +50,23 @@ namespace AliceO2 {
 	r[1]=x*sn + r[1]*cs;
       }
 
+      inline int Angle2Sector(float phi) {
+	// convert angle to sector ID
+	int sect = (phi*kRad2Deg)/kSectorSpan;
+	sect %= kNSectors;
+	return (sect<0) ? sect+kNSectors-1 : sect;
+      }
+
+      inline float Sector2Angle(int sect) {
+	// convert sector to its angle center
+	return kSectorSpan/2.f + (sect%kNSectors)*kSectorSpan;
+      }
+
+      inline float Angle2Alpha(float phi) {
+	// convert angle to its sector alpha
+	return Sector2Angle(Angle2Sector(phi));
+      }
+
     }
   }
 }

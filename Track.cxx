@@ -2,6 +2,80 @@
 
 using namespace AliceO2::Base;
 
+
+//______________________________________________________________
+Track::TrackParam::TrackParam(const float xyz[3],const float pxpypz[3],int sign, bool sectorAlpha)
+{
+  // construct track from kinematics
+
+  // Alpha of the frame is defined as:
+  // sectorAlpha == false : -> angle of pt direction
+  // sectorAlpha == true : ->  angle of the sector from X,Y coordinate for r>1 
+  //                           angle of pt direction for r==0
+  //
+  //
+  const float kSafe = 1e-5f;
+  float radPos2 = xyz[0]*xyz[0]+xyz[1]*xyz[1];  
+  float alp = 0;
+  if (sectorAlpha || radPos2<1) alp = atan2f(pxpypz[1],pxpypz[0]);
+  else                          alp = atan2f(xyz[1],xyz[0]);
+  if (sectorAlpha) alp = Angle2Alpha(alp);
+  //
+  float sn,cs; 
+  sincosf(alp,sn,cs);
+  // protection:  avoid alpha being too close to 0 or +-pi/2
+  if (fabs(sn)<2*kSafe) {
+    if (alp>0) alp += alp< kPIHalf ?  2*kSafe : -2*kSafe;
+    else       alp += alp>-kPIHalf ? -2*kSafe :  2*kSafe;
+    sincosf(alp,sn,cs);
+  }
+  else if (fabs(cs)<2*kSafe) {
+    if (alp>0) alp += alp> kPIHalf ? 2*kSafe : -2*kSafe;
+    else       alp += alp>-kPIHalf ? 2*kSafe : -2*kSafe;
+    sincosf(alp,sn,cs);
+  }
+  // Get the vertex of origin and the momentum
+  TVector3 ver(xyz[0],xyz[1],xyz[2]);
+  TVector3 mom(pxpypz[0],pxpypz[1],pxpypz[2]);
+  //
+  // Rotate to the local coordinate system
+  ver.RotateZ(-fAlpha);
+  mom.RotateZ(-fAlpha);
+
+  //
+  // x of the reference plane
+  fX = ver.X();
+
+  Double_t charge = (Double_t)sign;
+
+  fP[0] = ver.Y();
+  fP[1] = ver.Z();
+  fP[2] = TMath::Sin(mom.Phi());
+  fP[3] = mom.Pz()/mom.Pt();
+  fP[4] = TMath::Sign(1/mom.Pt(),charge);
+  //
+  if      (TMath::Abs( 1-fP[2]) < kSafe) fP[2] = 1.- kSafe; //Protection
+  else if (TMath::Abs(-1-fP[2]) < kSafe) fP[2] =-1.+ kSafe; //Protection
+  //
+  // Covariance matrix (formulas to be simplified)
+  Double_t pt=1./TMath::Abs(fP[4]);
+  Double_t r=TMath::Sqrt((1.-fP[2])*(1.+fP[2]));
+  //
+  Double_t cv34 = TMath::Sqrt(cv[3 ]*cv[3 ]+cv[4 ]*cv[4 ]);
+  //
+  Int_t special = 0;
+  double sgcheck = r*sn + fP[2]*cs;
+  if (TMath::Abs(sgcheck)>=1-kSafe) { // special case: lab phi is +-pi/2
+    special = 1;
+    sgcheck = TMath::Sign(1.0,sgcheck);
+  }
+  else if (TMath::Abs(sgcheck)<kSafe) {
+    sgcheck = TMath::Sign(1.0,cs);
+    special = 2;   // special case: lab phi is 0
+  }
+  //
+}
+
 //______________________________________________________________
 bool Track::RotateParam(TrackPar& track, float alpha)
 {
