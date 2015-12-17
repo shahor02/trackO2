@@ -25,7 +25,8 @@ namespace AliceO2 {
 	    kSigSnpY,kSigSnpZ,kSigSnp2,
 	    kSigTglY,kSigTglZ,kSigTglSnp,kSigTgl2,
 	    kSigQ2PtY,kSigQ2PtZ,kSigQ2PtSnp,kSigQ2PtTgl,kSigQ2Pt2};
-      enum {kNParams=5,kNCovMatSize=15,kTrackPSize=kNParams+2,kTrackPCSize=kTrackPSize+kNCovMatSize};
+      enum {kNParams=5,kCovMatSize=15,kTrackPSize=kNParams+2,kTrackPCSize=kTrackPSize+kCovMatSize
+	    ,kLabCovMatSize=21};
 
       const float 
 	kCY2max=100*100, // SigmaY<=100cm
@@ -37,8 +38,8 @@ namespace AliceO2 {
   
       class TrackPar { // track parameterization, kinematics only
       public:
-	TrackPar(float x,float alpha, const float *par);
-	TrackPar(const float xyz[3],const float pxpypz[3],int sign);
+	TrackPar(float x,float alpha, const float par[kNParams]);
+	TrackPar(const float xyz[3],const float pxpypz[3],int sign, bool sectorAlpha=true);
 	TrackPar(const TrackPar& src);
 	~TrackPar() {}
 	TrackPar& operator=(const TrackPar& src);
@@ -64,7 +65,8 @@ namespace AliceO2 {
 
       class TrackParCov { // track+error parameterization
       public:
-	TrackParCov(float x,float alpha, const float *par, const float* cov);
+	TrackParCov(float x,float alpha, const float par[kNParams], const float cov[kCovMatSize]);
+	TrackParCov(const float xyz[3],const float pxpypz[3],const float[kLabCovMatSize],int sign, bool sectorAlpha=true);
 	TrackParCov(const TrackParCov& src);
 	~TrackParCov() {}
 	TrackParCov& operator=(const TrackParCov& src);
@@ -112,7 +114,7 @@ namespace AliceO2 {
 
 
       //____________________________________________________________
-      inline TrackPar::TrackPar(float x, float alpha, const float *par) {
+      inline TrackPar::TrackPar(float x, float alpha, const float par[kNParams]) {
 	// explicit constructor
 	mParam[kX] = x;
 	mParam[kAlpha] = alpha;
@@ -133,12 +135,12 @@ namespace AliceO2 {
       }
       
       //____________________________________________________________
-      inline TrackParCov::TrackParCov(float x, float alpha, const float *par, const float *cov) {
+      inline TrackParCov::TrackParCov(float x, float alpha, const float par[kNParams], const float cov[kCovMatSize]) {
 	// explicit constructor
 	mParCov[kX] = x;
 	mParCov[kAlpha] = alpha;
 	memcpy(&mParCov[kY],par,kNParams*sizeof(float));
-	memcpy(&mParCov[kSigY2],cov,kNCovMatSize*sizeof(float));
+	memcpy(&mParCov[kSigY2],cov,kCovMatSize*sizeof(float));
       }
 
       //____________________________________________________________
@@ -202,7 +204,7 @@ namespace AliceO2 {
 	xyz[0] = track.GetX(); 
 	xyz[1] = track.GetY();
 	xyz[2] = track.GetZ();
-	Local2GlobalPosition(xyz,track.GetAlpha());
+	RotateZ(xyz,track.GetAlpha());
       }
       
       //_______________________________________________________      

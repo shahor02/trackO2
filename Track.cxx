@@ -4,13 +4,13 @@ using namespace AliceO2::Base;
 
 
 //______________________________________________________________
-Track::TrackParam::TrackParam(const float xyz[3],const float pxpypz[3],int sign, bool sectorAlpha)
+Track::TrackPar::TrackPar(const float xyz[3],const float pxpypz[3], int charge, bool sectorAlpha)
 {
-  // construct track from kinematics
+  // construct track param from kinematics
 
   // Alpha of the frame is defined as:
   // sectorAlpha == false : -> angle of pt direction
-  // sectorAlpha == true : ->  angle of the sector from X,Y coordinate for r>1 
+  // sectorAlpha == true  : -> angle of the sector from X,Y coordinate for r>1 
   //                           angle of pt direction for r==0
   //
   //
@@ -35,46 +35,167 @@ Track::TrackParam::TrackParam(const float xyz[3],const float pxpypz[3],int sign,
     sincosf(alp,sn,cs);
   }
   // Get the vertex of origin and the momentum
-  TVector3 ver(xyz[0],xyz[1],xyz[2]);
-  TVector3 mom(pxpypz[0],pxpypz[1],pxpypz[2]);
+  float ver[3] = {xyz[0],xyz[1],xyz[2]};
+  float mom[3] = {pxpypz[0],pxpypz[1],pxpypz[2]};
   //
   // Rotate to the local coordinate system
-  ver.RotateZ(-fAlpha);
-  mom.RotateZ(-fAlpha);
-
+  RotateZ(ver,-alp);
+  RotateZ(mom,-alp);
   //
-  // x of the reference plane
-  fX = ver.X();
-
-  Double_t charge = (Double_t)sign;
-
-  fP[0] = ver.Y();
-  fP[1] = ver.Z();
-  fP[2] = TMath::Sin(mom.Phi());
-  fP[3] = mom.Pz()/mom.Pt();
-  fP[4] = TMath::Sign(1/mom.Pt(),charge);
+  float ptI      = 1.f/sqrt(mom[0]*mom[0]+mom[1]*mom[1]);
+  mParam[kX]     = ver[0];
+  mParam[kAlpha] = alp;
+  mParam[kY]     = ver[1];
+  mParam[kZ]     = ver[2];
+  mParam[kSnp]   = mom[1]*ptI;
+  mParam[kTgl]   = mom[2]*ptI;
+  mParam[kQ2Pt]  = ptI*charge;
   //
-  if      (TMath::Abs( 1-fP[2]) < kSafe) fP[2] = 1.- kSafe; //Protection
-  else if (TMath::Abs(-1-fP[2]) < kSafe) fP[2] =-1.+ kSafe; //Protection
+  if      (fabs( 1-mParam[kSnp]) < kSafe) mParam[kSnp] = 1.- kSafe; //Protection
+  else if (fabs(-1-mParam[kSnp]) < kSafe) mParam[kSnp] =-1.+ kSafe; //Protection
+  //
+}
+
+//______________________________________________________________
+Track::TrackParCov::TrackParCov(const float xyz[3],const float pxpypz[3], 
+				const float cv[kLabCovMatSize], int charge, bool sectorAlpha)
+{
+  // construct track param and covariance from kinematics and lab errors
+
+  // Alpha of the frame is defined as:
+  // sectorAlpha == false : -> angle of pt direction
+  // sectorAlpha == true  : -> angle of the sector from X,Y coordinate for r>1 
+  //                           angle of pt direction for r==0
+  //
+  //
+  const float kSafe = 1e-5f;
+  float radPos2 = xyz[0]*xyz[0]+xyz[1]*xyz[1];  
+  float alp = 0;
+  if (sectorAlpha || radPos2<1) alp = atan2f(pxpypz[1],pxpypz[0]);
+  else                          alp = atan2f(xyz[1],xyz[0]);
+  if (sectorAlpha) alp = Angle2Alpha(alp);
+  //
+  float sn,cs; 
+  sincosf(alp,sn,cs);
+  // protection:  avoid alpha being too close to 0 or +-pi/2
+  if (fabs(sn)<2*kSafe) {
+    if (alp>0) alp += alp< kPIHalf ?  2*kSafe : -2*kSafe;
+    else       alp += alp>-kPIHalf ? -2*kSafe :  2*kSafe;
+    sincosf(alp,sn,cs);
+  }
+  else if (fabs(cs)<2*kSafe) {
+    if (alp>0) alp += alp> kPIHalf ? 2*kSafe : -2*kSafe;
+    else       alp += alp>-kPIHalf ? 2*kSafe : -2*kSafe;
+    sincosf(alp,sn,cs);
+  }
+  // Get the vertex of origin and the momentum
+  float ver[3] = {xyz[0],xyz[1],xyz[2]};
+  float mom[3] = {pxpypz[0],pxpypz[1],pxpypz[2]};
+  //
+  // Rotate to the local coordinate system
+  RotateZ(ver,-alp);
+  RotateZ(mom,-alp);
+  //
+  float pt       = sqrt(mom[0]*mom[0]+mom[1]*mom[1]);
+  float ptI      = 1.f/pt;
+  mParCov[kX]     = ver[0];
+  mParCov[kAlpha] = alp;
+  mParCov[kY]     = ver[1];
+  mParCov[kZ]     = ver[2];
+  mParCov[kSnp]   = mom[1]*ptI; // cos(phi)
+  mParCov[kTgl]   = mom[2]*ptI; // tg(lambda)
+  mParCov[kQ2Pt]  = ptI*charge;
+  //
+  if      (fabs( 1-mParCov[kSnp]) < kSafe) mParCov[kSnp] = 1.- kSafe; //Protection
+  else if (fabs(-1-mParCov[kSnp]) < kSafe) mParCov[kSnp] =-1.+ kSafe; //Protection
   //
   // Covariance matrix (formulas to be simplified)
-  Double_t pt=1./TMath::Abs(fP[4]);
-  Double_t r=TMath::Sqrt((1.-fP[2])*(1.+fP[2]));
+  float r=mom[0]*ptI;  // cos(phi)
+  float cv34 = sqrtf(cv[3]*cv[3]+cv[4]*cv[4]);
   //
-  Double_t cv34 = TMath::Sqrt(cv[3 ]*cv[3 ]+cv[4 ]*cv[4 ]);
-  //
-  Int_t special = 0;
-  double sgcheck = r*sn + fP[2]*cs;
-  if (TMath::Abs(sgcheck)>=1-kSafe) { // special case: lab phi is +-pi/2
+  int special = 0;
+  float sgcheck = r*sn + mParCov[kSnp]*cs;
+  if (fabs(sgcheck)>1-kSafe) { // special case: lab phi is +-pi/2
     special = 1;
-    sgcheck = TMath::Sign(1.0,sgcheck);
+    sgcheck = sgcheck<0 ? -1.f:1.f;
   }
-  else if (TMath::Abs(sgcheck)<kSafe) {
-    sgcheck = TMath::Sign(1.0,cs);
+  else if (fabs(sgcheck)<kSafe) {
+    sgcheck = cs<0 ? -1.0f:1.0f;
     special = 2;   // special case: lab phi is 0
   }
   //
+  mParCov[kSigY2] = cv[0]+cv[2];  
+  mParCov[kSigZY] = (-cv[3 ]*sn)<0 ? -cv34 : cv34;
+  mParCov[kSigZ2] = cv[5]; 
+  //
+  float ptI2 = ptI*ptI;
+  float tgl2 = mParCov[kTgl]*mParCov[kTgl];
+  if (special==1) {
+    mParCov[kSigSnpY   ] = cv[6]*ptI;
+    mParCov[kSigSnpZ   ] = -sgcheck*cv[8]*r*ptI;
+    mParCov[kSigSnp2   ] = fabs(cv[9]*r*r*ptI2);
+    mParCov[kSigTglY   ] = (cv[10]*mParCov[kTgl]-sgcheck*cv[15])*ptI/r;
+    mParCov[kSigTglZ   ] = (cv[17]-sgcheck*cv[12]*mParCov[kTgl])*ptI;
+    mParCov[kSigTglSnp ] = (-sgcheck*cv[18]+cv[13]*mParCov[kTgl])*r*ptI2;
+    mParCov[kSigTgl2   ] = fabs( cv[20]-2*sgcheck*cv[19]*mParCov[4]+cv[14]*tgl2)*ptI2;
+    mParCov[kSigQ2PtY  ] = cv[10]*ptI2/r*charge;
+    mParCov[kSigQ2PtZ  ] = -sgcheck*cv[12]*ptI2*charge;
+    mParCov[kSigQ2PtSnp] = cv[13]*r*ptI*ptI2*charge;
+    mParCov[kSigQ2PtTgl] = (-sgcheck*cv[19]+cv[14]*mParCov[kTgl])*r*ptI2*ptI;
+    mParCov[kSigQ2Pt2  ] = fabs(cv[14]*ptI2*ptI2);
+  } else if (special==2) {
+    mParCov[kSigSnpY   ] = -cv[10]*ptI*cs/sn;
+    mParCov[kSigSnpZ   ] = cv[12]*cs*ptI;
+    mParCov[kSigSnp2   ] = fabs(cv[14]*cs*cs*ptI2);
+    mParCov[kSigTglY   ] = (sgcheck*cv[6]*mParCov[kTgl]-cv[15])*ptI/sn;
+    mParCov[kSigTglZ   ] = (cv[17]-sgcheck*cv[8]*mParCov[kTgl])*ptI;
+    mParCov[kSigTglSnp ] = (cv[19]-sgcheck*cv[13]*mParCov[kTgl])*cs*ptI2;
+    mParCov[kSigTgl2   ] = fabs( cv[20]-2*sgcheck*cv[18]*mParCov[kTgl]+cv[9]*tgl2)*ptI2;
+    mParCov[kSigQ2PtY  ] = sgcheck*cv[6]*ptI2/sn*charge;
+    mParCov[kSigQ2PtZ  ] = -sgcheck*cv[8]*ptI2*charge;
+    mParCov[kSigQ2PtSnp] = -sgcheck*cv[13]*cs*ptI*ptI2*charge;
+    mParCov[kSigQ2PtTgl] = (-sgcheck*cv[18]+cv[9]*mParCov[kTgl])*ptI2*ptI*charge;
+    mParCov[kSigQ2Pt2  ] = fabs(cv[9]*ptI2*ptI2);
+  }
+  else {
+    double m00=-sn;// m10=cs;
+    double m23=-pt*(sn + mParCov[kSnp]*cs/r), m43=-pt*pt*(r*cs - mParCov[kSnp]*sn);
+    double m24= pt*(cs - mParCov[kSnp]*sn/r), m44=-pt*pt*(r*sn + mParCov[kSnp]*cs);
+    double m35=pt, m45=-pt*pt*mParCov[kTgl];
+    //
+    m43 *= charge;
+    m44 *= charge;
+    m45 *= charge;
+    //
+    double a1=cv[13]-cv[9]*(m23*m44+m43*m24)/m23/m43;
+    double a2=m23*m24-m23*(m23*m44+m43*m24)/m43;
+    double a3=m43*m44-m43*(m23*m44+m43*m24)/m23;
+    double a4=cv[14]+2.*cv[9];
+    double a5=m24*m24-2.*m24*m44*m23/m43;
+    double a6=m44*m44-2.*m24*m44*m43/m23;
+    //    
+    mParCov[kSigSnpY ] = (cv[10]*m43-cv[6]*m44)/(m24*m43-m23*m44)/m00; 
+    mParCov[kSigQ2PtY] = (cv[6]/m00-mParCov[kSigSnpY ]*m23)/m43; 
+    mParCov[kSigTglY ] = (cv[15]/m00-mParCov[kSigQ2PtY]*m45)/m35; 
+    mParCov[kSigSnpZ ] = (cv[12]*m43-cv[8]*m44)/(m24*m43-m23*m44); 
+    mParCov[kSigQ2PtZ] = (cv[8]-mParCov[kSigSnpZ]*m23)/m43; 
+    mParCov[kSigTglZ ] = cv[17]/m35-mParCov[kSigQ2PtZ]*m45/m35; 
+    mParCov[kSigSnp2 ] = fabs((a4*a3-a6*a1)/(a5*a3-a6*a2));
+    mParCov[kSigQ2Pt2] = fabs((a1-a2*mParCov[kSigSnp2])/a3);
+    mParCov[kSigQ2PtSnp] = (cv[9]-mParCov[kSigSnp2]*m23*m23-mParCov[kSigQ2Pt2]*m43*m43)/m23/m43;
+    double b1=cv[18]-mParCov[kSigQ2PtSnp]*m23*m45-mParCov[kSigQ2Pt2]*m43*m45;
+    double b2=m23*m35;
+    double b3=m43*m35;
+    double b4=cv[19]-mParCov[kSigQ2PtSnp]*m24*m45-mParCov[kSigQ2Pt2]*m44*m45;
+    double b5=m24*m35;
+    double b6=m44*m35;
+    mParCov[kSigTglSnp ] = (b4-b6*b1/b3)/(b5-b6*b2/b3);
+    mParCov[kSigQ2PtTgl] = b1/b3-b2*mParCov[kSigTglSnp]/b3;
+    mParCov[kSigTgl2 ] = fabs((cv[20]-mParCov[kSigQ2Pt2]*(m45*m45)-mParCov[kSigQ2PtTgl]*2.*m35*m45)/(m35*m35));
+  }
+  CheckCovariance(*this);
 }
+
 
 //______________________________________________________________
 bool Track::RotateParam(TrackPar& track, float alpha)
@@ -684,14 +805,13 @@ bool Track::TrackPar2Momentum(float p[3], float alpha)
 bool Track::GetPosDir(const TrackPar& track, float posdirp[9])
 {
   // fill vector with lab x,y,z,px/p,py/p,pz/p,p,sinAlpha,cosAlpha
-  float pti = fabs(track.GetQ2Pt());
+  float ptI = fabs(track.GetQ2Pt());
   float snp = track.GetSnp();
-  if (pti<kAlmost0 || fabs(snp)>kAlmost1) return false;
+  if (ptI<kAlmost0 || fabs(snp)>kAlmost1) return false;
   float sn=posdirp[7],cs=posdirp[8]; 
   float csp = sqrtf((1.f - snp)*(1.f + snp));
   float cstht = sqrtf(1.f+ track.GetTgl()*track.GetTgl());
   float csthti = 1.f/cstht;
-  float x = track.GetX();
   sincosf(track.GetAlpha(),sn,cs);
   posdirp[0] = track.GetX()*cs - track.GetY()*sn;
   posdirp[1] = track.GetX()*sn + track.GetY()*cs;
@@ -699,7 +819,7 @@ bool Track::GetPosDir(const TrackPar& track, float posdirp[9])
   posdirp[3] = (csp*cs - snp*sn)*csthti;  // px/p
   posdirp[4] = (snp*cs + csp*sn)*csthti;  // py/p
   posdirp[5] = track.GetTgl()*csthti;     // pz/p
-  posdirp[6] = cstht/pti;                 // p
+  posdirp[6] = cstht/ptI;                 // p
   return true;
 }
 

@@ -42,7 +42,7 @@ namespace AliceO2 {
 	c = cos(ang);
       }
 
-      inline void Local2GlobalPosition(float r[3],float alpha) {
+      inline void RotateZ(float r[3],float alpha) {
 	// transforms vector in tracking frame alpha to global frame
 	float cs,sn, x=r[0];
 	sincosf(alpha,cs,sn);
