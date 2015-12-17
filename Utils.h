@@ -2,16 +2,17 @@
 /// \brief General auxilliary methods
 /// \author ruben.shahoyan@cern.ch
 
-#ifndef ALICEO2_BASE_CONSTANTS
-#define ALICEO2_BASE_CONSTANTS
+#ifndef ALICEO2_BASE_UTILS
+#define ALICEO2_BASE_UTILS
 
 #include "Constants.h"
+#include <math.h>
 
 namespace AliceO2 {
   namespace Base {
     namespace Utils {    
 
-      using AliceO2::Base::Constants;
+      using namespace AliceO2::Base::Constants;
 
       inline void  BringTo02Pi(float &phi) { 
 	// ensure angle in [0:2pi] for the input in [-pi:pi] or [0:pi]
@@ -35,12 +36,22 @@ namespace AliceO2 {
 	while(phi> kPI)   {phi -= k2PI;}
       }
 
-      inline vois sincosf(float ang, float& s, float &c) {
+      inline void sincosf(float ang, float& s, float &c) {
 	// consider speedup for simultaneus calculation
-	s = sinf(ang);
-	c = cosf(ang);
+	s = sin(ang);
+	c = cos(ang);
+      }
+
+      inline void Local2GlobalPosition(float r[3],float alpha) {
+	// transforms vector in tracking frame alpha to global frame
+	float cs,sn, x=r[0];
+	sincosf(alpha,cs,sn);
+	r[0]=x*cs - r[1]*sn; 
+	r[1]=x*sn + r[1]*cs;
       }
 
     }
   }
 }
+
+#endif
