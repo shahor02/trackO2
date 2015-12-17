@@ -186,7 +186,7 @@ namespace AliceO2 {
 
       // aux methods
       bool TrackPar2Momentum(float p[3], float alpha);
-      void  g3helx3(float qfield, float step, float vect[9]);
+      void  g3helx3(float qfield, float step, float vect[7]);
 
       // =======================================================
       

@@ -823,3 +823,59 @@ bool Track::GetPosDir(const TrackPar& track, float posdirp[9])
   return true;
 }
 
+void Track::g3helx3(float qfield, 
+		    float step,
+		    float vect[7]) {
+/******************************************************************
+ *                                                                *
+ *       GEANT3 tracking routine in a constant field oriented     *
+ *       along axis 3                                             *
+ *       Tracking is performed with a conventional                *
+ *       helix step method                                        *
+ *                                                                *
+ *       Authors    R.Brun, M.Hansroul  *********                 *
+ *       Rewritten  V.Perevoztchikov                              *
+ *                                                                *
+ *       Rewritten in C++ by I.Belikov                            *
+ *                                                                *
+ *  qfield (kG)       - particle charge times magnetic field      *
+ *  step   (cm)       - step length along the helix               *
+ *  vect[7](cm,GeV/c) - input/output x, y, z, px/p, py/p ,pz/p, p *
+ *                                                                *
+ ******************************************************************/
+  const int ix=0, iy=1, iz=2, ipx=3, ipy=4, ipz=5, ipp=6;
+  const float kOvSqSix=sqrtf(1./6.);
+
+  float cosx=vect[ipx], cosy=vect[ipy], cosz=vect[ipz];
+
+  float rho = qfield*kB2C/vect[ipp]; 
+  float tet = rho*step;
+
+  float tsint, sintt, sint, cos1t; 
+  if (fabs(tet) > 0.03f) {
+     sint  = sinf(tet);
+     sintt = sint/tet;
+     tsint = (tet - sint)/tet;
+     float t=sinf(0.5f*tet);
+     cos1t = 2*t*t/tet;
+  } else {
+     tsint = tet*tet/6.f;
+     sintt = (1.f-tet*kOvSqSix)*(1.f+tet*kOvSqSix); // 1.- tsint;
+     sint  = tet*sintt;
+     cos1t = 0.5f*tet; 
+  }
+
+  float f1 = step*sintt;
+  float f2 = step*cos1t;
+  float f3 = step*tsint*cosz;
+  float f4 = -tet*cos1t;
+  float f5 = sint;
+
+  vect[ix]  += f1*cosx - f2*cosy;
+  vect[iy]  += f1*cosy + f2*cosx;
+  vect[iz]  += f1*cosz + f3;
+
+  vect[ipx] += f4*cosx - f5*cosy;
+  vect[ipy] += f4*cosy + f5*cosx;  
+
+}
