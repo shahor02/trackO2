@@ -193,25 +193,25 @@ Track::TrackParCov::TrackParCov(const float xyz[3],const float pxpypz[3],
     mParCov[kSigQ2PtTgl] = b1/b3-b2*mParCov[kSigTglSnp]/b3;
     mParCov[kSigTgl2 ] = fabs((cv[20]-mParCov[kSigQ2Pt2]*(m45*m45)-mParCov[kSigQ2PtTgl]*2.*m35*m45)/(m35*m35));
   }
-  CheckCovariance(*this);
+  CheckCovariance();
 }
 
 
 //______________________________________________________________
-bool Track::RotateParam(TrackPar& track, float alpha)
+bool Track::TrackPar::RotateParam(float alpha)
 {
   // rotate to alpha frame
-  if (fabs(track[kSnp]) > kAlmost1) {
+  if (fabs(GetSnp()) > kAlmost1) {
     //FairLogger::GetLogger()->Error(MESSAGE_ORIGIN, 
-    printf("Precondition is not satisfied: |sin(phi)|>1 ! %f\n",track[kSnp]); 
+    printf("Precondition is not satisfied: |sin(phi)|>1 ! %f\n",GetSnp()); 
     return false;
   }
   //
   BringToPMPi(alpha);
   //
   float ca=0,sa=0;
-  sincosf(alpha-track[kAlpha],sa,ca);
-  float snp = track[kSnp], csp = sqrtf((1.f-snp)*(1.f+snp)); // Improve precision
+  sincosf(alpha-GetAlpha(),sa,ca);
+  float snp = GetSnp(), csp = sqrtf((1.f-snp)*(1.f+snp)); // Improve precision
   // RS: check if rotation does no invalidate track model (cos(local_phi)>=0, i.e. particle
   // direction in local frame is along the X axis
   if ((csp*ca+snp*sa)<0) {
@@ -226,29 +226,29 @@ bool Track::RotateParam(TrackPar& track, float alpha)
     printf("Rotation failed: new snp %.2f\n",tmp);
     return false;
   }
-  float xold = track[kX], yold = track[kY];
-  track[kAlpha] = alpha;
-  track[kX]  =  xold*ca + yold*sa;
-  track[kY]  = -xold*sa + yold*ca;
-  track[kSnp]=  tmp;
+  float xold = GetX(), yold = GetY();
+  mParam[kAlpha] = alpha;
+  mParam[kX]  =  xold*ca + yold*sa;
+  mParam[kY]  = -xold*sa + yold*ca;
+  mParam[kSnp]=  tmp;
   return true;
 }
 
 //______________________________________________________________
-bool Track::Rotate(TrackParCov& track, float alpha)
+bool Track::TrackParCov::Rotate(float alpha)
 {
   // rotate to alpha frame
-  if (fabs(track[kSnp]) > kAlmost1) {
+  if (fabs(mParCov[kSnp]) > kAlmost1) {
     //FairLogger::GetLogger()->Error(MESSAGE_ORIGIN, 
-    printf("Precondition is not satisfied: |sin(phi)|>1 ! %f\n",track[kSnp]); 
+    printf("Precondition is not satisfied: |sin(phi)|>1 ! %f\n",mParCov[kSnp]); 
     return false;
   }
   //
   BringToPMPi(alpha);
   //
   float ca=0,sa=0;
-  sincosf(alpha-track[kAlpha],sa,ca);
-  float snp = track[kSnp], csp = sqrtf((1.f-snp)*(1.f+snp)); // Improve precision
+  sincosf(alpha-mParCov[kAlpha],sa,ca);
+  float snp = mParCov[kSnp], csp = sqrtf((1.f-snp)*(1.f+snp)); // Improve precision
   // RS: check if rotation does no invalidate track model (cos(local_phi)>=0, i.e. particle
   // direction in local frame is along the X axis
   if ((csp*ca+snp*sa)<0) {
@@ -263,11 +263,11 @@ bool Track::Rotate(TrackParCov& track, float alpha)
     printf("Rotation failed: new snp %.2f\n",tmp);
     return false;
   }
-  float xold = track[kX], yold = track[kY];
-  track[kAlpha] = alpha;
-  track[kX]  =  xold*ca + yold*sa;
-  track[kY]  = -xold*sa + yold*ca;
-  track[kSnp]=  tmp;
+  float xold = mParCov[kX], yold = mParCov[kY];
+  mParCov[kAlpha] = alpha;
+  mParCov[kX]  =  xold*ca + yold*sa;
+  mParCov[kY]  = -xold*sa + yold*ca;
+  mParCov[kSnp]=  tmp;
 
   if (fabs(csp)<kAlmost0) {
     printf("Too small cosine value %f\n",csp);
@@ -276,74 +276,72 @@ bool Track::Rotate(TrackParCov& track, float alpha)
 
   float rr=(ca+snp/csp*sa);  
 
-  track[kSigY2]      *= (ca*ca);
-  track[kSigZY]      *= ca;
-  track[kSigSnpY]    *= ca*rr;
-  track[kSigSnpZ]    *= rr;
-  track[kSigSnp2]    *= rr*rr;
-  track[kSigTglY]    *= ca;
-  track[kSigTglSnp]  *= rr;
-  track[kSigQ2PtY]   *= ca;
-  track[kSigQ2PtSnp] *= rr;
+  mParCov[kSigY2]      *= (ca*ca);
+  mParCov[kSigZY]      *= ca;
+  mParCov[kSigSnpY]    *= ca*rr;
+  mParCov[kSigSnpZ]    *= rr;
+  mParCov[kSigSnp2]    *= rr*rr;
+  mParCov[kSigTglY]    *= ca;
+  mParCov[kSigTglSnp]  *= rr;
+  mParCov[kSigQ2PtY]   *= ca;
+  mParCov[kSigQ2PtSnp] *= rr;
 
-  CheckCovariance(track);
+  CheckCovariance();
   return true;
 }
 
 //______________________________________________________________
-void Track::InvertParam(TrackPar& track) 
+void Track::TrackPar::InvertParam() 
 {
   // Transform this track to the local coord. system rotated by 180 deg. 
-  track[kX] = -track[kX];
-  track[kAlpha] += kPI;
-  BringToPMPi(track[kAlpha]);
+  mParam[kX] = -mParam[kX];
+  mParam[kAlpha] += kPI;
+  BringToPMPi(mParam[kAlpha]);
   //
-  track[0] = -track[0];
-  track[3] = -track[3];
-  track[4] = -track[4];
+  mParam[0] = -mParam[0];
+  mParam[3] = -mParam[3];
+  mParam[4] = -mParam[4];
   //
 }
 
 //______________________________________________________________
-void Track::Invert(TrackParCov& track) 
+void Track::TrackParCov::Invert() 
 {
   // Transform this track to the local coord. system rotated by 180 deg. 
-  InvertParam(track);
+  InvertParam();
   // since the fP1 and fP2 are not inverted, their covariances with others change sign
-  track[kSigZY]      = -track[kSigZY];
-  track[kSigSnpY]    = -track[kSigSnpY];
-  track[kSigTglZ]    = -track[kSigTglZ];
-  track[kSigTglSnp]  = -track[kSigTglSnp];
-  track[kSigQ2PtZ]   = -track[kSigQ2PtZ];
-  track[kSigQ2PtSnp] = -track[kSigQ2PtSnp];
+  mParCov[kSigZY]      = -mParCov[kSigZY];
+  mParCov[kSigSnpY]    = -mParCov[kSigSnpY];
+  mParCov[kSigTglZ]    = -mParCov[kSigTglZ];
+  mParCov[kSigTglSnp]  = -mParCov[kSigTglSnp];
+  mParCov[kSigQ2PtZ]   = -mParCov[kSigQ2PtZ];
+  mParCov[kSigQ2PtSnp] = -mParCov[kSigQ2PtSnp];
 }
 
 //____________________________________________________________
-bool Track::PropagateParamTo(TrackPar &track,float xk, float b) 
+bool Track::TrackPar::PropagateParamTo(float xk, float b) 
 {
   //----------------------------------------------------------------
   // Propagate this track to the plane X=xk (cm) in the field "b" (kG)
   // Only parameters are propagated, not the matrix. To be used for small 
   // distances only (<mm, i.e. misalignment)
   //----------------------------------------------------------------
-  float dx=xk-track[kX];
+  float dx=xk-mParam[kX];
   if (fabs(dx)<kAlmost0)  return true;
-  float crv = fabs(b) ? track.GetCurvature(b) : 0.f;
-  if (fabs(b) < kAlmost0) crv=0.f;
-  else crv = track.GetCurvature(b);
+  float crv = (fabs(b)<kAlmost0) ? 0.f : GetCurvature(b);
   float x2r = crv*dx;
-  float f1 = track[kSnp], f2=f1 + x2r;
+  float f1 = mParam[kSnp], f2=f1 + x2r;
   if (fabs(f1) > kAlmost1) return false;
   if (fabs(f2) > kAlmost1) return false;
-  if (fabs(track[kQ2Pt])< kAlmost0) return false;
+  if (fabs(mParam[kQ2Pt])< kAlmost0) return false;
   float r1=sqrtf((1.f-f1)*(1.f+f1)), r2=sqrtf((1.f-f2)*(1.f+f2));
   if (fabs(r1)<kAlmost0)  return false;
   if (fabs(r2)<kAlmost0)  return false;
-  track[kX] = xk;
+  mParam[kX] = xk;
   double dy2dx = (f1+f2)/(r1+r2);
-  track[kY] += dx*dy2dx;
-  track[kSnp] += x2r;
-  if (fabs(x2r)<0.05f) track[kZ] += dx*(r2 + f2*dy2dx)*track[kTgl];
+  mParam[kY] += dx*dy2dx;
+  mParam[kSnp] += x2r;
+  if (fabs(x2r)<0.05f) mParam[kZ] += dx*(r2 + f2*dy2dx)*mParam[kTgl];
   else { 
     // for small dx/R the linear apporximation of the arc by the segment is OK,
     // but at large dx/R the error is very large and leads to incorrect Z propagation
@@ -358,34 +356,33 @@ bool Track::PropagateParamTo(TrackPar &track,float xk, float b)
       if (f2>0.f) rot = kPI - rot;    //
       else       rot = -kPI - rot;
     }
-    track[kZ] += track[kTgl]/crv*rot; 
+    mParam[kZ] += mParam[kTgl]/crv*rot; 
   }
   return true;
 }
 
 //______________________________________________________________
-bool Track::PropagateTo(TrackParCov &track, float xk, float b) 
+bool Track::TrackParCov::PropagateTo(float xk, float b) 
 {
   //----------------------------------------------------------------
   // Propagate this track to the plane X=xk (cm) in the field "b" (kG)
   //----------------------------------------------------------------
-  float crv,dx=xk-track[kX];
+  float dx=xk-mParCov[kX];
   if (fabs(dx)< kAlmost0)  return true;      
-  if (fabs(b) < kAlmost0) crv=0.f;
-  else crv = track.GetCurvature(b);
+  float crv = (fabs(b)<kAlmost0) ? 0.f : GetCurvature(b);
   float x2r = crv*dx;
-  float f1 = track[kSnp], f2=f1 + x2r;
+  float f1 = mParCov[kSnp], f2=f1 + x2r;
   if (fabs(f1) > kAlmost1) return false;
   if (fabs(f2) > kAlmost1) return false;
-  if (fabs(track[kQ2Pt])< kAlmost0) return false;
+  if (fabs(mParCov[kQ2Pt])< kAlmost0) return false;
   float r1=sqrtf((1.f-f1)*(1.f+f1)), r2=sqrtf((1.f-f2)*(1.f+f2));
   if (fabs(r1)<kAlmost0)  return false;
   if (fabs(r2)<kAlmost0)  return false;
-  track[kX] = xk;
+  mParCov[kX] = xk;
   double dy2dx = (f1+f2)/(r1+r2);
-  track[kY] += dx*dy2dx;
-  track[kSnp] += x2r;
-  if (fabs(x2r)<0.05f) track[kZ] += dx*(r2 + f2*dy2dx)*track[kTgl];
+  mParCov[kY] += dx*dy2dx;
+  mParCov[kSnp] += x2r;
+  if (fabs(x2r)<0.05f) mParCov[kZ] += dx*(r2 + f2*dy2dx)*mParCov[kTgl];
   else { 
     // for small dx/R the linear apporximation of the arc by the segment is OK,
     // but at large dx/R the error is very large and leads to incorrect Z propagation
@@ -393,31 +390,31 @@ bool Track::PropagateTo(TrackParCov &track, float xk, float b)
     // The dist_start_end is obtained from sqrt(dx^2+dy^2) = x/(r1+r2)*sqrt(2+f1*f2+r1*r2)
     //    double chord = dx*TMath::Sqrt(1+dy2dx*dy2dx);   // distance from old position to new one
     //    double rot = 2*TMath::ASin(0.5*chord*crv); // angular difference seen from the circle center
-    //    track1 += rot/crv*track3;
+    //    mParCov1 += rot/crv*mParCov3;
     // 
     float rot = asinf(r1*f2 - r2*f1); // more economic version from Yura.
     if (f1*f1+f2*f2>1.f && f1*f2<0.f) {          // special cases of large rotations or large abs angles
       if (f2>0.f) rot = kPI - rot;    //
       else       rot = -kPI - rot;
     }
-    track[kZ] += track[kTgl]/crv*rot; 
+    mParCov[kZ] += mParCov[kTgl]/crv*rot; 
   }
     
   float
-    &c00=track[kSigY2],
-    &c10=track[kSigZY],    &c11=track[kSigZ2],
-    &c20=track[kSigSnpY],  &c21=track[kSigSnpZ],  &c22=track[kSigSnp2],
-    &c30=track[kSigTglY],  &c31=track[kSigTglZ],  &c32=track[kSigTglSnp],  &c33=track[kSigTgl2],  
-    &c40=track[kSigQ2PtY], &c41=track[kSigQ2PtZ], &c42=track[kSigQ2PtSnp], &c43=track[kSigQ2PtTgl], &c44=track[kSigQ2Pt2];
+    &c00=mParCov[kSigY2],
+    &c10=mParCov[kSigZY],    &c11=mParCov[kSigZ2],
+    &c20=mParCov[kSigSnpY],  &c21=mParCov[kSigSnpZ],  &c22=mParCov[kSigSnp2],
+    &c30=mParCov[kSigTglY],  &c31=mParCov[kSigTglZ],  &c32=mParCov[kSigTglSnp],  &c33=mParCov[kSigTgl2],  
+    &c40=mParCov[kSigQ2PtY], &c41=mParCov[kSigQ2PtZ], &c42=mParCov[kSigQ2PtSnp], &c43=mParCov[kSigQ2PtTgl], &c44=mParCov[kSigQ2Pt2];
     
   // evaluate matrix in double prec.
   double rinv  = 1./r1;
   double r3inv = rinv*rinv*rinv;
-  double f24   = dx*b*kB2C; // x2r/track[kQ2Pt];
+  double f24   = dx*b*kB2C; // x2r/mParCov[kQ2Pt];
   double f02   = dx*r3inv;
   double f04   = 0.5*f24*f02;
-  double f12   = f02*track[kTgl]*f1;
-  double f14   = 0.5*f24*f02*track[kTgl]*f1;
+  double f12   = f02*mParCov[kTgl]*f1;
+  double f14   = 0.5*f24*f02*mParCov[kTgl]*f1;
   double f13   = dx*rinv;
     
   //b = C*ft
@@ -451,13 +448,13 @@ bool Track::PropagateTo(TrackParCov &track, float xk, float b)
   c32 += b32;
   c42 += b42;
     
-  CheckCovariance(track);
+  CheckCovariance();
     
   return true;
 }
 
 //____________________________________________________________
-bool Track::PropagateParamBxByBzTo(TrackPar& track, float xk, const float b[3])
+bool Track::TrackPar::PropagateParamBxByBzTo(float xk, const float b[3])
 {
   //----------------------------------------------------------------
   // Extrapolate this track params (w/o cov matrix) to the plane X=xk in the field b[].
@@ -466,30 +463,29 @@ bool Track::PropagateParamBxByBzTo(TrackPar& track, float xk, const float b[3])
   // b[]={Bx,By,Bz} [kG] is in the Global coordidate system.
   //----------------------------------------------------------------
 
-  float dx=xk-track.GetX();
+  float dx=xk-mParam[kX];
   if (fabs(dx)<kAlmost0)  return true;
-  if (fabs(track.GetQ2Pt())<kAlmost0) return true;
   // Do not propagate tracks outside the ALICE detector
-  if (fabs(dx)>1e5 || fabs(track.GetY())>1e5 || fabs(track.GetZ())>1e5) {
+  if (fabs(dx)>1e5 || fabs(mParam[kY])>1e5 || fabs(mParam[kZ])>1e5) {
     printf("Anomalous track, target X:%f\n",xk);
     //    Print();
     return false;
   }
-  float crv = fabs(b[2]) ? track.GetCurvature(b[2]) : 0.f;
+  float crv = (fabs(b[2])<kAlmost0) ? 0.f : GetCurvature(b[2]);
   float x2r = crv*dx;
-  float f1 = track[kSnp], f2 = f1 + x2r;
+  float f1 = mParam[kSnp], f2 = f1 + x2r;
   if (fabs(f1)>kAlmost1 || fabs(f2)>kAlmost1) return false;
-  if (fabs(track[kQ2Pt])<kAlmost0) return false;
+  if (fabs(mParam[kQ2Pt])<kAlmost0) return false;
   float r1=sqrtf((1.f-f1)*(1.f+f1)), r2=sqrtf((1.f-f2)*(1.f+f2));
   if (fabs(r1)<kAlmost0 || fabs(r2)<kAlmost0)  return false;
   float dy2dx = (f1+f2)/(r1+r2);
   float step = (fabs(x2r)<0.05f) ? dx*fabs(r2 + f2*dy2dx)      // chord
     : 2.f*asinf(0.5f*dx*sqrtf(1.f+dy2dx*dy2dx)*crv)/crv;       // arc
-  step *= sqrtf(1.f+ track.GetTgl()*track.GetTgl());
+  step *= sqrtf(1.f+ mParam[kTgl]*mParam[kTgl]);
   //
   // Get the track x,y,z,px/p,py/p,pz/p,p,sinAlpha,cosAlpha in the Global System
   float vecLab[9];
-  if (!GetPosDir(track, vecLab)) return false;
+  if (!GetPosDir(vecLab)) return false;
 
   // Rotate to the system where Bx=By=0.
   float bxy2 = b[0]*b[0] + b[1]*b[1];
@@ -515,7 +511,7 @@ bool Track::PropagateParamBxByBzTo(TrackPar& track, float xk, const float b[3])
     vecLab[6]};
 
   // Do the helix step
-  float sgn = track.GetSign();
+  float sgn = GetSign();
   g3helx3(sgn*bb,step,vect);
 
   // Rotate back to the Global System
@@ -548,18 +544,18 @@ bool Track::PropagateParamBxByBzTo(TrackPar& track, float xk, const float b[3])
   
   // Calculate the track parameters
   t = 1.f/sqrtf(vecLab[3]*vecLab[3] + vecLab[4]*vecLab[4]);
-  track[kX]    = x;
-  track[kY]    = y;
-  track[kZ]    = z;
-  track[kSnp]  = vecLab[4]*t;
-  track[kTgl]  = vecLab[5]*t; 
-  track[kQ2Pt] = sgn*t/vecLab[6];
+  mParam[kX]    = x;
+  mParam[kY]    = y;
+  mParam[kZ]    = z;
+  mParam[kSnp]  = vecLab[4]*t;
+  mParam[kTgl]  = vecLab[5]*t; 
+  mParam[kQ2Pt] = sgn*t/vecLab[6];
 
   return true;
 }
 
 //____________________________________________________________
-bool Track::PropagateBxByBzTo(TrackParCov& track, float xk, const float b[3])
+bool Track::TrackParCov::PropagateBxByBzTo(float xk, const float b[3])
 {
   //----------------------------------------------------------------
   // Extrapolate this track to the plane X=xk in the field b[].
@@ -568,46 +564,45 @@ bool Track::PropagateBxByBzTo(TrackParCov& track, float xk, const float b[3])
   // b[]={Bx,By,Bz} [kG] is in the Global coordidate system.
   //----------------------------------------------------------------
 
-  float dx=xk-track.GetX();
+  float dx=xk-GetX();
   if (fabs(dx)<kAlmost0)  return true;
-  if (fabs(track.GetQ2Pt())<kAlmost0) return true;
   // Do not propagate tracks outside the ALICE detector
-  if (fabs(dx)>1e5 || fabs(track.GetY())>1e5 || fabs(track.GetZ())>1e5) {
+  if (fabs(dx)>1e5 || fabs(GetY())>1e5 || fabs(GetZ())>1e5) {
     printf("Anomalous track, target X:%f\n",xk);
     //    Print();
     return false;
   }
-  float crv = fabs(b[2]) ? track.GetCurvature(b[2]) : 0.f;
+  float crv = (fabs(b[2])<kAlmost0) ? 0.f : GetCurvature(b[2]);
   float x2r = crv*dx;
-  float f1 = track[kSnp], f2 = f1 + x2r;
+  float f1 = mParCov[kSnp], f2 = f1 + x2r;
   if (fabs(f1)>kAlmost1 || fabs(f2)>kAlmost1) return false;
-  if (fabs(track[kQ2Pt])<kAlmost0) return false;
+  if (fabs(mParCov[kQ2Pt])<kAlmost0) return false;
   float r1=sqrtf((1.f-f1)*(1.f+f1)), r2=sqrtf((1.f-f2)*(1.f+f2));
   if (fabs(r1)<kAlmost0 || fabs(r2)<kAlmost0)  return false;
   float dy2dx = (f1+f2)/(r1+r2);
   float step = (fabs(x2r)<0.05f) ? dx*fabs(r2 + f2*dy2dx)      // chord
     : 2.f*asinf(0.5f*dx*sqrtf(1.f+dy2dx*dy2dx)*crv)/crv;       // arc
-  step *= sqrtf(1.f+ track.GetTgl()*track.GetTgl());
+  step *= sqrtf(1.f+ GetTgl()*GetTgl());
   //
   // Get the track x,y,z,px/p,py/p,pz/p,p,sinAlpha,cosAlpha in the Global System
   float vecLab[9];
-  if (!GetPosDir(track, vecLab)) return false;
+  if (!Param()->GetPosDir(vecLab)) return false;
   //
   // matrix transformed with Bz component only
   float
-    &c00=track[kSigY2],
-    &c10=track[kSigZY],    &c11=track[kSigZ2],
-    &c20=track[kSigSnpY],  &c21=track[kSigSnpZ],  &c22=track[kSigSnp2],
-    &c30=track[kSigTglY],  &c31=track[kSigTglZ],  &c32=track[kSigTglSnp],  &c33=track[kSigTgl2],  
-    &c40=track[kSigQ2PtY], &c41=track[kSigQ2PtZ], &c42=track[kSigQ2PtSnp], &c43=track[kSigQ2PtTgl], &c44=track[kSigQ2Pt2];
+    &c00=mParCov[kSigY2],
+    &c10=mParCov[kSigZY],   &c11=mParCov[kSigZ2],
+    &c20=mParCov[kSigSnpY], &c21=mParCov[kSigSnpZ], &c22=mParCov[kSigSnp2],
+    &c30=mParCov[kSigTglY], &c31=mParCov[kSigTglZ], &c32=mParCov[kSigTglSnp], &c33=mParCov[kSigTgl2],  
+    &c40=mParCov[kSigQ2PtY],&c41=mParCov[kSigQ2PtZ],&c42=mParCov[kSigQ2PtSnp],&c43=mParCov[kSigQ2PtTgl],&c44=mParCov[kSigQ2Pt2];
   // evaluate matrix in double prec.
   double rinv  = 1./r1;
   double r3inv = rinv*rinv*rinv;
   double f24   = dx*b[2]*kB2C; // x2r/track[kQ2Pt];
   double f02   = dx*r3inv;
   double f04   = 0.5*f24*f02;
-  double f12   = f02*track[kTgl]*f1;
-  double f14   = 0.5*f24*f02*track[kTgl]*f1;
+  double f12   = f02*GetTgl()*f1;
+  double f14   = 0.5*f24*f02*GetTgl()*f1;
   double f13   = dx*rinv;
     
   //b = C*ft
@@ -641,7 +636,7 @@ bool Track::PropagateBxByBzTo(TrackParCov& track, float xk, const float b[3])
   c32 += b32;
   c42 += b42;
     
-  CheckCovariance(track);
+  CheckCovariance();
   //
   // Rotate to the system where Bx=By=0.
   float bxy2 = b[0]*b[0] + b[1]*b[1];
@@ -667,7 +662,7 @@ bool Track::PropagateBxByBzTo(TrackParCov& track, float xk, const float b[3])
     vecLab[6]};
 
   // Do the helix step
-  float sgn = track.GetSign();
+  float sgn = GetSign();
   g3helx3(sgn*bb,step,vect);
 
   // Rotate back to the Global System
@@ -700,12 +695,12 @@ bool Track::PropagateBxByBzTo(TrackParCov& track, float xk, const float b[3])
   
   // Calculate the track parameters
   t = 1.f/sqrtf(vecLab[3]*vecLab[3] + vecLab[4]*vecLab[4]);
-  track[kX]    = x;
-  track[kY]    = y;
-  track[kZ]    = z;
-  track[kSnp]  = vecLab[4]*t;
-  track[kTgl]  = vecLab[5]*t; 
-  track[kQ2Pt] = sgn*t/vecLab[6];
+  mParCov[kX]    = x;
+  mParCov[kY]    = y;
+  mParCov[kZ]    = z;
+  mParCov[kSnp]  = vecLab[4]*t;
+  mParCov[kTgl]  = vecLab[5]*t; 
+  mParCov[kQ2Pt] = sgn*t/vecLab[6];
 
   return true;
 
@@ -713,56 +708,56 @@ bool Track::PropagateBxByBzTo(TrackParCov& track, float xk, const float b[3])
 
 
 //______________________________________________
-void Track::CheckCovariance(TrackParCov& track) 
+void Track::TrackParCov::CheckCovariance() 
 {
   // This function forces the diagonal elements of the covariance matrix to be positive.
   // In case the diagonal element is bigger than the maximal allowed value, it is set to
   // the limit and the off-diagonal elements that correspond to it are set to zero.
   
-  track[kSigY2] = fabs(track[kSigY2]);
-  if (track[kSigY2]>kCY2max) {
-    float scl = sqrtf(kCY2max/track[kSigY2]);
-    track[kSigY2]     = kCY2max;
-    track[kSigZY]    *= scl;
-    track[kSigSnpY]  *= scl;
-    track[kSigTglY]  *= scl;
-    track[kSigQ2PtY] *= scl;
+  mParCov[kSigY2] = fabs(mParCov[kSigY2]);
+  if (mParCov[kSigY2]>kCY2max) {
+    float scl = sqrtf(kCY2max/mParCov[kSigY2]);
+    mParCov[kSigY2]     = kCY2max;
+    mParCov[kSigZY]    *= scl;
+    mParCov[kSigSnpY]  *= scl;
+    mParCov[kSigTglY]  *= scl;
+    mParCov[kSigQ2PtY] *= scl;
   }
-  track[kSigZ2] = fabs(track[kSigZ2]);
-  if (track[kSigZ2]>kCZ2max) {
-    float scl = sqrtf(kCZ2max/track[kSigZ2]);
-    track[kSigZ2]     = kCZ2max;
-    track[kSigZY]    *= scl;
-    track[kSigSnpZ]  *= scl;
-    track[kSigTglZ]  *= scl;
-    track[kSigQ2PtZ] *= scl;
+  mParCov[kSigZ2] = fabs(mParCov[kSigZ2]);
+  if (mParCov[kSigZ2]>kCZ2max) {
+    float scl = sqrtf(kCZ2max/mParCov[kSigZ2]);
+    mParCov[kSigZ2]     = kCZ2max;
+    mParCov[kSigZY]    *= scl;
+    mParCov[kSigSnpZ]  *= scl;
+    mParCov[kSigTglZ]  *= scl;
+    mParCov[kSigQ2PtZ] *= scl;
   }
-  track[kSigSnp2] = fabs(track[kSigSnp2]);
-  if (track[kSigSnp2]>kCSnp2max) {
-    float scl = sqrtf(kCSnp2max/track[kSigSnp2]);
-    track[kSigSnp2] = kCSnp2max;
-    track[kSigSnpY] *= scl;
-    track[kSigSnpZ] *= scl;
-    track[kSigTglSnp] *= scl;
-    track[kSigQ2PtSnp] *= scl;
+  mParCov[kSigSnp2] = fabs(mParCov[kSigSnp2]);
+  if (mParCov[kSigSnp2]>kCSnp2max) {
+    float scl = sqrtf(kCSnp2max/mParCov[kSigSnp2]);
+    mParCov[kSigSnp2] = kCSnp2max;
+    mParCov[kSigSnpY] *= scl;
+    mParCov[kSigSnpZ] *= scl;
+    mParCov[kSigTglSnp] *= scl;
+    mParCov[kSigQ2PtSnp] *= scl;
   }
-  track[kSigTgl2] = fabs(track[kSigTgl2]);
-  if (track[kSigTgl2]>kCTgl2max) {
-    float scl = sqrtf(kCTgl2max/track[kSigTgl2]);
-    track[kSigTgl2] = kCTgl2max;
-    track[kSigTglY] *= scl;
-    track[kSigTglZ] *= scl;
-    track[kSigTglSnp] *= scl;
-    track[kSigQ2PtTgl] *= scl;
+  mParCov[kSigTgl2] = fabs(mParCov[kSigTgl2]);
+  if (mParCov[kSigTgl2]>kCTgl2max) {
+    float scl = sqrtf(kCTgl2max/mParCov[kSigTgl2]);
+    mParCov[kSigTgl2] = kCTgl2max;
+    mParCov[kSigTglY] *= scl;
+    mParCov[kSigTglZ] *= scl;
+    mParCov[kSigTglSnp] *= scl;
+    mParCov[kSigQ2PtTgl] *= scl;
   }
-  track[kSigQ2Pt2] = fabs(track[kSigQ2Pt2]);
-  if (track[kSigQ2Pt2]>kCQ2Pt2max) {
-    float scl = sqrtf(kCQ2Pt2max/track[kSigQ2Pt2]);
-    track[kSigQ2Pt2] = kCQ2Pt2max;
-    track[kSigQ2PtY] *= scl;
-    track[kSigQ2PtZ] *= scl;
-    track[kSigQ2PtSnp] *= scl;
-    track[kSigQ2PtTgl] *= scl;
+  mParCov[kSigQ2Pt2] = fabs(mParCov[kSigQ2Pt2]);
+  if (mParCov[kSigQ2Pt2]>kCQ2Pt2max) {
+    float scl = sqrtf(kCQ2Pt2max/mParCov[kSigQ2Pt2]);
+    mParCov[kSigQ2Pt2] = kCQ2Pt2max;
+    mParCov[kSigQ2PtY] *= scl;
+    mParCov[kSigQ2PtZ] *= scl;
+    mParCov[kSigQ2PtSnp] *= scl;
+    mParCov[kSigQ2PtTgl] *= scl;
   }
 }
 
@@ -774,51 +769,38 @@ void Track::CheckCovariance(TrackParCov& track)
 //=================================================
 
 
-//____________________________________________________
-bool Track::TrackPar2Momentum(float p[3], float alpha) 
+//_______________________________________________________      
+bool Track::TrackPar::GetPxPyPz(float pxyz[3]) const 
 {
-  //----------------------------------------------------------------
-  // This function performs local->global transformation of the
-  // track momentum.
-  // When called, the arguments are:
-  //    p[0] = 1/pt * charge of the track;
-  //    p[1] = sine of local azim. angle of the track momentum;
-  //    p[2] = tangent of the track momentum dip angle;
-  //   alpha - rotation angle. 
-  // The result is returned as:
-  //    p[0] = px
-  //    p[1] = py
-  //    p[2] = pz
-  // Results for (nearly) straight tracks are meaningless !
-  //----------------------------------------------------------------
-  if (fabs(p[0])<kAlmost0 || fabs(p[1])>kAlmost1) return false;
-  float cs,sn, pt=1.f/fabs(p[0]);
-  float r = sqrtf((1.f - p[1])*(1.f + p[1]));
-  sincosf(alpha,sn,cs);
-  p[0] = pt*(r*cs - p[1]*sn); 
-  p[1] = pt*(p[1]*cs + r*sn); 
-  p[2] = pt*p[2];
+  // track momentum
+  if (fabs(GetQ2Pt())<kAlmost0 || fabs(GetSnp())>kAlmost1) return false;
+  float cs,sn, pt=fabs(1.f/GetQ2Pt());
+  float r = sqrtf((1.f - GetSnp())*(1.f + GetSnp()));
+  sincosf(GetAlpha(),sn,cs);
+  pxyz[0] = pt*(r*cs - GetSnp()*sn); 
+  pxyz[1] = pt*(GetSnp()*cs + r*sn); 
+  pxyz[2] = pt*GetTgl();
   return true;
 }
 
 //____________________________________________________
-bool Track::GetPosDir(const TrackPar& track, float posdirp[9])
+bool Track::TrackPar::GetPosDir(float posdirp[9]) const
 {
   // fill vector with lab x,y,z,px/p,py/p,pz/p,p,sinAlpha,cosAlpha
-  float ptI = fabs(track.GetQ2Pt());
-  float snp = track.GetSnp();
+  float ptI = fabs(GetQ2Pt());
+  float snp = GetSnp();
   if (ptI<kAlmost0 || fabs(snp)>kAlmost1) return false;
-  float sn=posdirp[7],cs=posdirp[8]; 
+  float &sn=posdirp[7],&cs=posdirp[8]; 
   float csp = sqrtf((1.f - snp)*(1.f + snp));
-  float cstht = sqrtf(1.f+ track.GetTgl()*track.GetTgl());
+  float cstht = sqrtf(1.f+ GetTgl()*GetTgl());
   float csthti = 1.f/cstht;
-  sincosf(track.GetAlpha(),sn,cs);
-  posdirp[0] = track.GetX()*cs - track.GetY()*sn;
-  posdirp[1] = track.GetX()*sn + track.GetY()*cs;
-  posdirp[2] = track.GetZ();
+  sincosf(GetAlpha(),sn,cs);
+  posdirp[0] = GetX()*cs - GetY()*sn;
+  posdirp[1] = GetX()*sn + GetY()*cs;
+  posdirp[2] = GetZ();
   posdirp[3] = (csp*cs - snp*sn)*csthti;  // px/p
   posdirp[4] = (snp*cs + csp*sn)*csthti;  // py/p
-  posdirp[5] = track.GetTgl()*csthti;     // pz/p
+  posdirp[5] = GetTgl()*csthti;           // pz/p
   posdirp[6] = cstht/ptI;                 // p
   return true;
 }
