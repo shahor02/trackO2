@@ -33,11 +33,12 @@ namespace AliceO2 {
 	kCZ2max=100*100, // SigmaZ<=100cm
 	kCSnp2max=1*1,     // SigmaSin<=1
 	kCTgl2max=1*1,     // SigmaTan<=1
-	kCQ2Pt2max=100*100; // Sigma1/Pt<=100 1/GeV
+	kC1Pt2max=100*100; // Sigma1/Pt<=100 1/GeV
 
   
       class TrackPar { // track parameterization, kinematics only
       public:
+	TrackPar() {memset(mP,0,kTrackPSize*sizeof(float));}
 	TrackPar(float x,float alpha, const float par[kNParams]);
 	TrackPar(const float xyz[3],const float pxpypz[3],int sign, bool sectorAlpha=true);
 	TrackPar(const TrackPar& src);
@@ -60,7 +61,11 @@ namespace AliceO2 {
 	// derived getters
 	float GetCurvature(float b)          const { return mP[kQ2Pt]*b*kB2C;}
 	float GetSign()                      const { return mP[kQ2Pt]>0 ? 1.f:-1.f;}
+	float GetPhi()                       const { return asinf(GetSnp()) + GetAlpha();}
+	float GetPhiPos()                    const;
+
 	float GetP()                         const;
+	float GetPt()                        const;
 	void  GetXYZ(float xyz[3])           const;
 	bool  GetPxPyPz(float pxyz[3])       const;
 	bool  GetPosDir(float posdirp[9])    const;
@@ -68,8 +73,12 @@ namespace AliceO2 {
 	// parameters manipulation
 	bool  RotateParam(float alpha);
 	bool  PropagateParamTo(float xk, float b);
-	bool  PropagateParamBxByBzTo(float xk, const float b[3]);
+	bool  PropagateParamTo(float xk, const float b[3]);
 	void  InvertParam();
+
+	void  Print();
+
+	static void g3helx3(float qfield, float step,float vect[7]);
   
       protected:
 	float mP[kTrackPSize];  // x,alpha + 5 parameters
@@ -77,6 +86,7 @@ namespace AliceO2 {
 
       class TrackParCov { // track+error parameterization
       public:
+	TrackParCov() { memset(mPC,0,kTrackPCSize*sizeof(float)); }
 	TrackParCov(float x,float alpha, const float par[kNParams], const float cov[kCovMatSize]);
 	TrackParCov(const float xyz[3],const float pxpypz[3],const float[kLabCovMatSize],
 		    int sign, bool sectorAlpha=true);
@@ -123,6 +133,9 @@ namespace AliceO2 {
 	float GetCurvature(float b)          const { return mPC[kQ2Pt]*b*kB2C;}
 	float GetSign()                      const { return mPC[kQ2Pt]>0 ? 1.f:-1.f;}
 	float GetP()                         const { return Param()->GetP(); }
+	float GetPt()                        const { return Param()->GetPt(); }
+	float GetPhi()                       const { return Param()->GetPhi(); }
+	float GetPhiPos()                    const { return Param()->GetPhiPos(); }
 	void  GetXYZ(float xyz[3])           const { Param()->GetXYZ(xyz); }
 	bool  GetPxPyPz(float pxyz[3])       const { return Param()->GetPxPyPz(pxyz); }
 	bool  GetPosDir(float posdirp[9])    const { return Param()->GetPosDir(posdirp); }
@@ -130,18 +143,22 @@ namespace AliceO2 {
 	// parameters manipulation
 	bool  RotateParam(float alpha)             { return Param()->RotateParam(alpha); }
 	bool  PropagateParamTo(float xk, float b)  { return Param()->PropagateParamTo(xk,b); }
-	bool  PropagateParamBxByBzTo(float xk, const float b[3]) {return Param()->PropagateParamBxByBzTo(xk,b); }
+	bool  PropagateParamTo(float xk, const float b[3]) {return Param()->PropagateParamTo(xk,b); }
 	void  InvertParam()                        { Param()->InvertParam(); }
 
 	bool  Rotate(float alpha);
 	bool  PropagateTo(float xk, float b);
-	bool  PropagateBxByBzTo(float xk, const float b[3]);
+	bool  PropagateTo(float xk, const float b[3]);
 	void  Invert();
 
 	float GetPredictedChi2(const float p[2], const float cov[3]) const;
 	bool  Update(const float p[2], const float cov[3]);
 
+	bool  CorrectForMaterial(float x2x0,float xrho,float mass,bool anglecorr=false,float dedx=kCalcdEdxAuto);
+
+	void  ResetCovariance(float s2=0);
 	void  CheckCovariance();
+	void  Print();
 
       protected:
 	// internal cast to TrackPar
@@ -151,6 +168,8 @@ namespace AliceO2 {
 
       protected:
 	float mPC[kTrackPCSize];  // x, alpha + 5 parameters + 15 errors
+
+	static const float kCalcdEdxAuto; // value indicating request for dedx calculation
       };
 
 
@@ -184,6 +203,28 @@ namespace AliceO2 {
 	RotateZ(xyz,GetAlpha());
       }
 
+      //_______________________________________________________
+      inline float TrackPar::GetPhiPos() const {
+	// angle of track position
+	float xy[2]={GetX(),GetY()};
+	return atan2(xy[1],xy[0]);
+      }
+
+      //____________________________________________________________
+      inline float TrackPar::GetP() const {
+	// return the track momentum
+	float ptI = fabs(mP[kQ2Pt]);
+	return (ptI>kAlmost0) ? sqrtf(1.f+ mP[kTgl]*mP[kTgl])/ptI : kVeryBig;
+      }
+
+      //____________________________________________________________
+      inline float TrackPar::GetPt() const {
+	// return the track transverse momentum
+	float ptI = fabs(mP[kQ2Pt]);
+	return (ptI>kAlmost0) ? 1.f/ptI : kVeryBig;
+      }
+
+      //============================================================
 
       //____________________________________________________________
       inline TrackParCov::TrackParCov(float x, float alpha, const float par[kNParams], const float cov[kCovMatSize]) {
@@ -206,16 +247,6 @@ namespace AliceO2 {
 	if (this!=&src) memcpy(mPC,src.mPC,kTrackPSize*sizeof(float)); 
 	return *this;
       }
-
-      //===========================================================
-      //
-      //           Track manipulation methods
-      //
-      //===========================================================
-
-      void  g3helx3(float qfield, float step, float vect[7]);
-
-      // =======================================================
 
     }  
   }

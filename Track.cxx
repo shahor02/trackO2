@@ -2,6 +2,7 @@
 
 using namespace AliceO2::Base;
 
+const float Track::TrackParCov::kCalcdEdxAuto = -999.f;
 
 //______________________________________________________________
 Track::TrackPar::TrackPar(const float xyz[3],const float pxpypz[3], int charge, bool sectorAlpha)
@@ -133,7 +134,7 @@ bool Track::TrackPar::RotateParam(float alpha)
 
 
 //____________________________________________________________
-bool Track::TrackPar::PropagateParamBxByBzTo(float xk, const float b[3])
+bool Track::TrackPar::PropagateParamTo(float xk, const float b[3])
 {
   //----------------------------------------------------------------
   // Extrapolate this track params (w/o cov matrix) to the plane X=xk in the field b[].
@@ -203,11 +204,11 @@ bool Track::TrackPar::PropagateParamBxByBzTo(float xk, const float b[3])
   vecLab[5] = -sintet*vect[3] + costet*vect[5];
 
   // Rotate back to the Tracking System
-  float sinalp=vecLab[7],cosalp=-vecLab[8];
-  float t = cosalp*vecLab[0] - sinalp*vecLab[1];
+  float sinalp=-vecLab[7],cosalp=vecLab[8];
+  float t   = cosalp*vecLab[0] - sinalp*vecLab[1];
   vecLab[1] = sinalp*vecLab[0] + cosalp*vecLab[1];  
   vecLab[0] = t;
-  t    = cosalp*vecLab[3] - sinalp*vecLab[4]; 
+  t         = cosalp*vecLab[3] - sinalp*vecLab[4]; 
   vecLab[4] = sinalp*vecLab[3] + cosalp*vecLab[4];
   vecLab[3] = t; 
 
@@ -288,6 +289,13 @@ void Track::TrackPar::InvertParam()
   mP[3] = -mP[3];
   mP[4] = -mP[4];
   //
+}
+
+//______________________________________________________________
+void Track::TrackPar::Print()
+{
+  // print parameters
+  printf("X:%+e Alp:%+e Par: %+e %+e %+e %+e %+e\n",GetX(),GetAlpha(),GetY(),GetZ(),GetSnp(),GetTgl(),GetQ2Pt());
 }
 
 //______________________________________________________________
@@ -596,7 +604,7 @@ Track::TrackParCov::TrackParCov(const float xyz[3],const float pxpypz[3],
 
 
 //____________________________________________________________
-bool Track::TrackParCov::PropagateBxByBzTo(float xk, const float b[3])
+bool Track::TrackParCov::PropagateTo(float xk, const float b[3])
 {
   //----------------------------------------------------------------
   // Extrapolate this track to the plane X=xk in the field b[].
@@ -704,7 +712,7 @@ bool Track::TrackParCov::PropagateBxByBzTo(float xk, const float b[3])
 
   // Do the helix step
   float sgn = GetSign();
-  g3helx3(sgn*bb,step,vect);
+  TrackPar::g3helx3(sgn*bb,step,vect);
 
   // Rotate back to the Global System
   vecLab[0] = cosphi*costet*vect[0] - sinphi*vect[1] + cosphi*sintet*vect[2];
@@ -716,11 +724,11 @@ bool Track::TrackParCov::PropagateBxByBzTo(float xk, const float b[3])
   vecLab[5] = -sintet*vect[3] + costet*vect[5];
 
   // Rotate back to the Tracking System
-  float sinalp=vecLab[7],cosalp=-vecLab[8];
-  float t = cosalp*vecLab[0] - sinalp*vecLab[1];
+  float sinalp=-vecLab[7],cosalp=vecLab[8];
+  float t   = cosalp*vecLab[0] - sinalp*vecLab[1];
   vecLab[1] = sinalp*vecLab[0] + cosalp*vecLab[1];  
   vecLab[0] = t;
-  t    = cosalp*vecLab[3] - sinalp*vecLab[4]; 
+  t         = cosalp*vecLab[3] - sinalp*vecLab[4]; 
   vecLab[4] = sinalp*vecLab[3] + cosalp*vecLab[4];
   vecLab[3] = t; 
 
@@ -791,14 +799,40 @@ void Track::TrackParCov::CheckCovariance()
     mPC[kSigQ2PtTgl] *= scl;
   }
   mPC[kSigQ2Pt2] = fabs(mPC[kSigQ2Pt2]);
-  if (mPC[kSigQ2Pt2]>kCQ2Pt2max) {
-    float scl = sqrtf(kCQ2Pt2max/mPC[kSigQ2Pt2]);
-    mPC[kSigQ2Pt2] = kCQ2Pt2max;
+  if (mPC[kSigQ2Pt2]>kC1Pt2max) {
+    float scl = sqrtf(kC1Pt2max/mPC[kSigQ2Pt2]);
+    mPC[kSigQ2Pt2] = kC1Pt2max;
     mPC[kSigQ2PtY] *= scl;
     mPC[kSigQ2PtZ] *= scl;
     mPC[kSigQ2PtSnp] *= scl;
     mPC[kSigQ2PtTgl] *= scl;
   }
+}
+
+//______________________________________________
+void Track::TrackParCov::ResetCovariance(float s2) 
+{
+  // Reset the covarince matrix to "something big"
+  double d0(kCY2max),d1(kCZ2max),d2(kCSnp2max),d3(kCTgl2max),d4(kC1Pt2max);
+  if (s2>kAlmost0) {
+    d0 = GetSigmaY2()*s2;
+    d1 = GetSigmaZ2()*s2;
+    d2 = GetSigmaSnp2()*s2;
+    d3 = GetSigmaTgl2()*s2;
+    d4 = GetSigma1Pt2()*s2;
+    if (d0>kCY2max)    d0 = kCY2max;
+    if (d1>kCZ2max)    d1 = kCZ2max;
+    if (d2>kCSnp2max)  d2 = kCSnp2max;
+    if (d3>kCTgl2max)  d3 = kCTgl2max;
+    if (d4>kC1Pt2max)  d4 = kC1Pt2max;
+  }
+  memset(&mPC[kSigY2],0,kCovMatSize*sizeof(float));
+  mPC[kSigY2]    = d0;
+  mPC[kSigZ2]    = d1;
+  mPC[kSigSnp2]  = d2;
+  mPC[kSigTgl2]  = d3;  
+  mPC[kSigQ2Pt2] = d4;
+  
 }
 
 //______________________________________________
@@ -882,6 +916,118 @@ bool Track::TrackParCov::Update(const float p[2], const float cov[3])
   return true;
 }
 
+//______________________________________________
+bool Track::TrackParCov::CorrectForMaterial(float x2x0,  float xrho, float mass, 
+					    bool anglecorr, float dedx) 
+{
+  //------------------------------------------------------------------
+  // This function corrects the track parameters for the crossed material.
+  // "x2x0"   - X/X0, the thickness in units of the radiation length.
+  // "xrho" - is the product length*density (g/cm^2).
+  //     It should be passed as negative when propagating tracks 
+  //     from the intreaction point to the outside of the central barrel. 
+  // "mass" - the mass of this particle (GeV/c^2). Negative mass means charge=2 particle
+  // "dedx" - mean enery loss (GeV/(g/cm^2), if <=kCalcdEdxAuto : calculate on the fly
+  // "anglecorr" - switch for the angular correction
+  //------------------------------------------------------------------
+  const float kMSConst2 = 0.0136f*0.0136f;
+  const float kMaxELossFrac = 0.3f; // max allowed fractional eloss
+  const float kMinP = 0.01f;        // kill below this momentum
+  float &fP2 = mPC[kSnp];
+  float &fP3 = mPC[kTgl];
+  float &fP4 = mPC[kQ2Pt];
+
+  float &fC22 = mPC[kSigSnp2];
+  float &fC33 = mPC[kSigTgl2];
+  float &fC43 = mPC[kSigQ2PtTgl];
+  float &fC44 = mPC[kSigQ2Pt2];
+  //
+  float csp2 = (1.f-fP2)*(1.f+fP2); // cos(phi)^2
+  float cst2I = (1.f + fP3*fP3);    // 1/cos(lambda)^2
+  //Apply angle correction, if requested
+  if(anglecorr) {
+    float angle = sqrtf(cst2I/(csp2));
+    x2x0 *=angle;
+    xrho *=angle;
+  } 
+
+  float p = GetP();
+  if (mass<0) p += p; // q=2 particle 
+  float p2 = p*p, mass2=mass*mass;
+  float e2 = p2 + mass2;
+  float beta2 = p2/e2;
+
+  //Calculating the multiple scattering corrections******************
+  float cC22(0.f),cC33(0.f),cC43(0.f),cC44(0.f);
+  if (x2x0 != 0.f) {
+    float theta2 = kMSConst2/(beta2*p2)*fabs(x2x0);
+    if (mass<0) theta2 *= 4; // q=2 particle
+    if (theta2>kPI*kPI) return false;
+    float fp34 = fP3*fP4;
+    float t2c2I = theta2*cst2I;
+    cC22 = t2c2I*csp2;
+    cC33 = t2c2I*cst2I;
+    cC43 = t2c2I*fp34;
+    cC44 = theta2*fp34*fp34;
+    // optimes this
+    //    cC22 = theta2*((1.-fP2)*(1.+fP2))*(1. + fP3*fP3);
+    //    cC33 = theta2*(1. + fP3*fP3)*(1. + fP3*fP3);
+    //    cC43 = theta2*fP3*fP4*(1. + fP3*fP3);
+    //    cC44 = theta2*fP3*fP4*fP3*fP4;
+  }
+
+  //Calculating the energy loss corrections************************
+  float cP4 = 1.f;
+  if ((xrho != 0.f) && (beta2 < 1.f)) {
+    if (dedx<kCalcdEdxAuto+kAlmost1) { // request to calculate dedx on the fly
+      dedx = BetheBlochSolid(p/fabs(mass));
+      if (mass<0) dedx *= 4;  // z=2 particle
+    }
+
+    float dE = dedx*xrho;
+    float e  = sqrtf(e2);
+    if ( fabs(dE) > kMaxELossFrac*e ) return false; //30% energy loss is too much!
+    float eupd = e+dE;
+    float pupd2 = eupd*eupd - mass2;
+    if (pupd2<kMinP*kMinP) return false;
+    cP4 = p/sqrtf(pupd2);
+    //
+    // Approximate energy loss fluctuation (M.Ivanov)
+    const float knst=0.07; // To be tuned.  
+    float sigmadE = knst*sqrtf(fabs(dE))*e/p2*fP4;
+    cC44 += sigmadE*sigmadE;
+  }
+
+  //Applying the corrections*****************************
+  fC22 += cC22;
+  fC33 += cC33;
+  fC43 += cC43;
+  fC44 += cC44;
+  fP4  *= cP4;
+
+  CheckCovariance();
+
+  return true;
+}
+
+//______________________________________________________________
+void Track::TrackParCov::Print()
+{
+  // print parameters
+  Param()->Print();
+  printf("%7s %+.3e\n"
+	 "%7s %+.3e %+.3e\n"
+	 "%7s %+.3e %+.3e %+.3e\n"
+	 "%7s %+.3e %+.3e %+.3e %+.3e\n"
+	 "%7s %+.3e %+.3e %+.3e %+.3e %+.3e\n",
+	 "CovMat:",
+	 mPC[kSigY2]   , "",
+	 mPC[kSigZY]   , mPC[kSigZ2]   , "",
+	 mPC[kSigSnpY] , mPC[kSigSnpZ] , mPC[kSigSnp2]   , "",
+	 mPC[kSigTglY] , mPC[kSigTglZ] , mPC[kSigTglSnp] , mPC[kSigTgl2]   , "", 
+	 mPC[kSigQ2PtY], mPC[kSigQ2PtZ], mPC[kSigQ2PtSnp], mPC[kSigQ2PtTgl], mPC[kSigQ2Pt2]);
+}
+
 
 //=================================================
 //
@@ -889,9 +1035,8 @@ bool Track::TrackParCov::Update(const float p[2], const float cov[3])
 //
 //=================================================
 
-void Track::g3helx3(float qfield, 
-		    float step,
-		    float vect[7]) {
+void Track::TrackPar::g3helx3(float qfield, float step,float vect[7]) 
+{
 /******************************************************************
  *                                                                *
  *       GEANT3 tracking routine in a constant field oriented     *
