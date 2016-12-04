@@ -1,6 +1,6 @@
 # for C++ define  CC = g++
 CC = g++
-CFLAGS = -g -Wall -Weffc++ -fPIC -m64
+CFLAGS = -g -Wall -Weffc++ -fPIC -m64 -std=gnu++11
 LFLAGS = -L$(ROOTSYS)/lib 
 #LFLAGS = -L$(ROOTSYS)/lib -L$(ALICE_ROOT)/lib
 INC =	-I$(ROOTSYS)/include -I./

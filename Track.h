@@ -5,6 +5,7 @@
 #ifndef ALICEO2_BASE_TRACK
 #define ALICEO2_BASE_TRACK
 
+#include <iostream>
 #include <stdio.h>
 #include <string.h>
 #include "Constants.h"
@@ -16,42 +17,31 @@ namespace AliceO2 {
       
       using namespace AliceO2::Base::Constants;
       using namespace AliceO2::Base::Utils;
-
+      using namespace std;
+      
       // aliases for track elements
-      enum {kX,kAlpha,
-	    kY,kZ,kSnp,kTgl,kQ2Pt,
-	    kSigY2,
+      enum {kY,kZ,kSnp,kTgl,kQ2Pt};
+      enum {kSigY2,
 	    kSigZY,kSigZ2,
 	    kSigSnpY,kSigSnpZ,kSigSnp2,
 	    kSigTglY,kSigTglZ,kSigTglSnp,kSigTgl2,
 	    kSigQ2PtY,kSigQ2PtZ,kSigQ2PtSnp,kSigQ2PtTgl,kSigQ2Pt2};
-      enum {kNParams=5,kCovMatSize=15,kTrackPSize=kNParams+2,kTrackPCSize=kTrackPSize+kCovMatSize
-	    ,kLabCovMatSize=21};
-
+      enum {kNParams=5,kCovMatSize=15,kLabCovMatSize=21};
+      
       const float 
 	kCY2max=100*100, // SigmaY<=100cm
 	kCZ2max=100*100, // SigmaZ<=100cm
 	kCSnp2max=1*1,     // SigmaSin<=1
 	kCTgl2max=1*1,     // SigmaTan<=1
 	kC1Pt2max=100*100; // Sigma1/Pt<=100 1/GeV
-
-  
+      
+      
       class TrackPar { // track parameterization, kinematics only
       public:
-	TrackPar() {memset(mP,0,kTrackPSize*sizeof(float));}
-	TrackPar(float x,float alpha, const float par[kNParams]);
-	TrackPar(const float xyz[3],const float pxpypz[3],int sign, bool sectorAlpha=true);
-	TrackPar(const TrackPar& src);
-	~TrackPar() {}
-	TrackPar& operator=(const TrackPar& src);
 
-	float& operator[](int i)                   { return mP[i]; }
-	float  operator[](int i)             const { return mP[i]; }
-	operator float*()                    const { return (float*)mP; }
-
-	const float* GetParam()              const { return &mP[kY]; }
-	float GetX()                         const { return mP[kX]; }
-	float GetAlpha()                     const { return mP[kAlpha]; }
+	const float* GetParam()              const { return mP; }
+	float GetX()                         const { return mX; }
+	float GetAlpha()                     const { return mAlpha; }
 	float GetY()                         const { return mP[kY]; }
 	float GetZ()                         const { return mP[kZ]; }
 	float GetSnp()                       const { return mP[kSnp]; }
@@ -76,76 +66,55 @@ namespace AliceO2 {
 	bool  PropagateParamTo(float xk, const float b[3]);
 	void  InvertParam();
 
-	void  Print();
+	void  PrintParam()                   const;
 
-	static void g3helx3(float qfield, float step,float vect[7]);
-  
       protected:
-	float mP[kTrackPSize];  // x,alpha + 5 parameters
+	// to keep this class non-virtual but derivable the c-tors and d-tor are protected
+        TrackPar() : mX(0),mAlpha(0) {memset(mP,0,kNParams*sizeof(float));}
+	TrackPar(float x,float alpha, const float par[kNParams]);
+	TrackPar(const float xyz[3],const float pxpypz[3],int sign, bool sectorAlpha=true);
+	TrackPar(const TrackPar& src);
+	~TrackPar() {}
+	TrackPar& operator=(const TrackPar& src);
+	//
+	static void g3helx3(float qfield, float step,float vect[7]);
+	
+      protected:
+	float mX;               // X of track evaluation
+	float mAlpha;           // track frame angle
+	float mP[kNParams];     // 5 parameters: Y,Z,sin(phi),tg(lambda),q/pT
       };
 
-      class TrackParCov { // track+error parameterization
+      // rootcint does not swallow final keyword here
+      class TrackParCov /*final*/ : public TrackPar { // track+error parameterization
       public:
-	TrackParCov() { memset(mPC,0,kTrackPCSize*sizeof(float)); }
+	TrackParCov() { memset(mC,0,kCovMatSize*sizeof(float)); }
 	TrackParCov(float x,float alpha, const float par[kNParams], const float cov[kCovMatSize]);
-	TrackParCov(const float xyz[3],const float pxpypz[3],const float[kLabCovMatSize],
-		    int sign, bool sectorAlpha=true);
+	TrackParCov(const float xyz[3],const float pxpypz[3],const float[kLabCovMatSize], int sign, bool sectorAlpha=true);
 	TrackParCov(const TrackParCov& src);
 	~TrackParCov() {}
 	TrackParCov& operator=(const TrackParCov& src);
 
-	operator TrackPar*() { return reinterpret_cast<TrackPar*>(this); }
-	operator TrackPar()  { return *reinterpret_cast<TrackPar*>(this); }
-	operator TrackPar&() { return *reinterpret_cast<TrackPar*>(this); }
+	const float* GetCov()                const { return mC; }	
+	float GetSigmaY2()                   const { return mC[kSigY2]; }
+	float GetSigmaZY()                   const { return mC[kSigZY]; }
+	float GetSigmaZ2()                   const { return mC[kSigZ2]; }
+	float GetSigmaSnpY()                 const { return mC[kSigSnpY]; }
+	float GetSigmaSnpZ()                 const { return mC[kSigSnpZ]; }
+	float GetSigmaSnp2()                 const { return mC[kSigSnp2]; }
+	float GetSigmaTglY()                 const { return mC[kSigTglY]; }
+	float GetSigmaTglZ()                 const { return mC[kSigTglZ]; }
+	float GetSigmaTglSnp()               const { return mC[kSigTglSnp]; }
+	float GetSigmaTgl2()                 const { return mC[kSigTgl2]; }
+	float GetSigma1PtY()                 const { return mC[kSigQ2PtY]; }
+	float GetSigma1PtZ()                 const { return mC[kSigQ2PtZ]; }
+	float GetSigma1PtSnp()               const { return mC[kSigQ2PtSnp]; }
+	float GetSigma1PtTgl()               const { return mC[kSigQ2PtTgl]; }
+	float GetSigma1Pt2()                 const { return mC[kSigQ2Pt2]; }
 
-	float& operator[](int i)                   { return mPC[i]; }
-	float  operator[](int i)             const { return mPC[i]; }
-	operator float*()                    const { return (float*)mPC; }
-	const float* GetParam()              const { return &mPC[kY]; }
-	const float* GetCov()                const { return &mPC[kSigY2]; }
+	void  Print()                        const;
 
-	float GetX()                         const { return mPC[kX]; }
-	float GetAlpha()                     const { return mPC[kAlpha]; }
-	float GetY()                         const { return mPC[kY]; }
-	float GetZ()                         const { return mPC[kZ]; }
-	float GetSnp()                       const { return mPC[kSnp]; }
-	float GetTgl()                       const { return mPC[kTgl]; }
-	float GetQ2Pt()                      const { return mPC[kQ2Pt]; }
-	
-
-	float GetSigmaY2()                   const { return mPC[kSigY2]; }
-	float GetSigmaZY()                   const { return mPC[kSigZY]; }
-	float GetSigmaZ2()                   const { return mPC[kSigZ2]; }
-	float GetSigmaSnpY()                 const { return mPC[kSigSnpY]; }
-	float GetSigmaSnpZ()                 const { return mPC[kSigSnpZ]; }
-	float GetSigmaSnp2()                 const { return mPC[kSigSnp2]; }
-	float GetSigmaTglY()                 const { return mPC[kSigTglY]; }
-	float GetSigmaTglZ()                 const { return mPC[kSigTglZ]; }
-	float GetSigmaTglSnp()               const { return mPC[kSigTglSnp]; }
-	float GetSigmaTgl2()                 const { return mPC[kSigTgl2]; }
-	float GetSigma1PtY()                 const { return mPC[kSigQ2PtY]; }
-	float GetSigma1PtZ()                 const { return mPC[kSigQ2PtZ]; }
-	float GetSigma1PtSnp()               const { return mPC[kSigQ2PtSnp]; }
-	float GetSigma1PtTgl()               const { return mPC[kSigQ2PtTgl]; }
-	float GetSigma1Pt2()                 const { return mPC[kSigQ2Pt2]; }
-
-	// derived getters
-	float GetCurvature(float b)          const { return mPC[kQ2Pt]*b*kB2C;}
-	float GetSign()                      const { return mPC[kQ2Pt]>0 ? 1.f:-1.f;}
-	float GetP()                         const { return Param()->GetP(); }
-	float GetPt()                        const { return Param()->GetPt(); }
-	float GetPhi()                       const { return Param()->GetPhi(); }
-	float GetPhiPos()                    const { return Param()->GetPhiPos(); }
-	void  GetXYZ(float xyz[3])           const { Param()->GetXYZ(xyz); }
-	bool  GetPxPyPz(float pxyz[3])       const { return Param()->GetPxPyPz(pxyz); }
-	bool  GetPosDir(float posdirp[9])    const { return Param()->GetPosDir(posdirp); }
-
-	// parameters manipulation
-	bool  RotateParam(float alpha)             { return Param()->RotateParam(alpha); }
-	bool  PropagateParamTo(float xk, float b)  { return Param()->PropagateParamTo(xk,b); }
-	bool  PropagateParamTo(float xk, const float b[3]) {return Param()->PropagateParamTo(xk,b); }
-	void  InvertParam()                        { Param()->InvertParam(); }
-
+	// parameters + covmat manipulation
 	bool  Rotate(float alpha);
 	bool  PropagateTo(float xk, float b);
 	bool  PropagateTo(float xk, const float b[3]);
@@ -158,39 +127,42 @@ namespace AliceO2 {
 
 	void  ResetCovariance(float s2=0);
 	void  CheckCovariance();
-	void  Print();
 
       protected:
-	// internal cast to TrackPar
-	const TrackPar* Param()              const { return reinterpret_cast<const TrackPar*>(this); }
-	TrackPar* Param()                          { return reinterpret_cast<TrackPar*>(this); }
-	bool TrackPar2Momentum(float p[3], float alpha);
-
-      protected:
-	float mPC[kTrackPCSize];  // x, alpha + 5 parameters + 15 errors
+	float mC[kCovMatSize];  // x, alpha + 5 parameters + 15 errors
 
 	static const float kCalcdEdxAuto; // value indicating request for dedx calculation
       };
 
+      class TrackParOnly final : public TrackPar { // track parameterization only
+      public:
+	TrackParOnly() {}
+        TrackParOnly(float x,float alpha, const float par[kNParams]) : TrackPar(x,alpha,par) {}
+        TrackParOnly(const float xyz[3],const float pxpypz[3],int sign, bool sectorAlpha=true) : TrackPar(xyz,pxpypz,sign,sectorAlpha) {}
+        TrackParOnly(const TrackParOnly& src) : TrackPar(src) {}
+        TrackParOnly(const TrackParCov& src) : TrackPar((const TrackPar&)src) {}
+	~TrackParOnly() {}
+	TrackParOnly& operator=(const TrackParOnly& src) {TrackPar::operator=((const TrackPar&)src); return *this;}
+	//
+	void  Print() const {PrintParam();}
+      };
 
       //____________________________________________________________
-      inline TrackPar::TrackPar(float x, float alpha, const float par[kNParams]) {
+      inline TrackPar::TrackPar(float x, float alpha, const float par[kNParams]) : mX(x), mAlpha(alpha) {
 	// explicit constructor
-	mP[kX] = x;
-	mP[kAlpha] = alpha;
-	memcpy(&mP[kY],par,kNParams*sizeof(float));
+	memcpy(mP,par,kNParams*sizeof(float));
       }
 
       //____________________________________________________________
-      inline TrackPar::TrackPar(const TrackPar& src) {
+      inline TrackPar::TrackPar(const TrackPar& src) : mX(src.mX), mAlpha(src.mAlpha) {
 	// copy c-tor
-	memcpy(mP,src.mP,kTrackPSize*sizeof(float));
+	memcpy(mP,src.mP,kNParams*sizeof(float));
       }
 
       //____________________________________________________________
       inline TrackPar& TrackPar::operator=(const TrackPar& src) {
 	// assignment operator
-	if (this!=&src) memcpy(mP,src.mP,kTrackPSize*sizeof(float)); 
+	if (this!=&src) memcpy(this,&src,sizeof(TrackPar));
 	return *this;
       }
       
@@ -213,38 +185,35 @@ namespace AliceO2 {
       //____________________________________________________________
       inline float TrackPar::GetP() const {
 	// return the track momentum
-	float ptI = fabs(mP[kQ2Pt]);
-	return (ptI>kAlmost0) ? sqrtf(1.f+ mP[kTgl]*mP[kTgl])/ptI : kVeryBig;
+	float ptI = fabs(GetQ2Pt());
+	return (ptI>kAlmost0) ? sqrtf(1.f+ GetTgl()*GetTgl())/ptI : kVeryBig;
       }
 
       //____________________________________________________________
       inline float TrackPar::GetPt() const {
 	// return the track transverse momentum
-	float ptI = fabs(mP[kQ2Pt]);
+	float ptI = fabs(GetQ2Pt());
 	return (ptI>kAlmost0) ? 1.f/ptI : kVeryBig;
       }
 
       //============================================================
 
       //____________________________________________________________
-      inline TrackParCov::TrackParCov(float x, float alpha, const float par[kNParams], const float cov[kCovMatSize]) {
+      inline TrackParCov::TrackParCov(float x, float alpha, const float par[kNParams], const float cov[kCovMatSize]) : TrackPar(x,alpha,par) {
 	// explicit constructor
-	mPC[kX] = x;
-	mPC[kAlpha] = alpha;
-	memcpy(&mPC[kY],par,kNParams*sizeof(float));
-	memcpy(&mPC[kSigY2],cov,kCovMatSize*sizeof(float));
+	memcpy(mC,cov,kCovMatSize*sizeof(float));
       }
 
       //____________________________________________________________
-      inline TrackParCov::TrackParCov(const TrackParCov& src) {
+      inline TrackParCov::TrackParCov(const TrackParCov& src) : TrackPar(src) {
 	// copy c-tor
-	memcpy(mPC,src.mPC,kTrackPCSize*sizeof(float));
+	memcpy(mC,src.GetCov(),sizeof(kCovMatSize));
       }
 
       //____________________________________________________________
       inline TrackParCov& TrackParCov::operator=(const TrackParCov& src) {
 	// assignment operator
-	if (this!=&src) memcpy(mPC,src.mPC,kTrackPSize*sizeof(float)); 
+	if (this!=&src) memcpy(mC,src.mC,kCovMatSize*sizeof(float)); 
 	return *this;
       }
 

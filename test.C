@@ -23,8 +23,8 @@ void test()
 			   0,0,0,0,1e-4,
 			   0,0,0,0,0,1e-4};
 
-  TrackParCov *trcO2 = new TrackParCov(xyzF,pxyzF,covF,1,false);
-  TrackPar *trpO2 = new TrackPar(xyzF,pxyzF,1,false);
+  TrackParCov  *trcO2 = new TrackParCov(xyzF,pxyzF,covF,1,false);
+  TrackParOnly *trpO2 = new TrackParOnly(xyzF,pxyzF,1,false);
   AliExternalTrackParam* etp = new AliExternalTrackParam(xyzD,pxyzD,covD,1);
   AliExternalTrackParam* etpp = new AliExternalTrackParam(xyzD,pxyzD,covD,1);
   //
@@ -32,7 +32,7 @@ void test()
   printf("[0] TrackParCov:\n");
   trcO2->Print();
   printf("[1] TrackPar:\n");
-  trpO2->Print();
+  trpO2->PrintParam();
   printf("[2] AliExternalTrackParam:\n");
   etp->Print();
   printf("[3] AliExternalTrackParam: param only\n");
@@ -89,8 +89,8 @@ void test()
   printf("\nAt Max X:\n");
   printf("[0] TrackParCov:\n");
   trcO2->Print();
-  printf("[1] TrackPar:\n");
-  trpO2->Print();
+  printf("[1] TrackParOnly:\n");
+  trpO2->PrintParam();
   printf("[2] AliExternalTrackParam:\n");
   etp->Print();
   printf("[3] AliExternalTrackParam: param only\n");
@@ -130,8 +130,8 @@ void test()
   printf("\n\nBackToVertex with 3D field, w/o updates:\n");
   printf("[0] TrackParCov:\n");
   trcO2->Print();
-  printf("[1] TrackPar:\n");
-  trpO2->Print();
+  printf("[1] TrackParOnly:\n");
+  trpO2->PrintParam();
   printf("[2] AliExternalTrackParam:\n");
   etp->Print();
   printf("[3] AliExternalTrackParam: param only\n");
@@ -142,19 +142,34 @@ void test()
   }
   //
   printf("\nDifference for full propagation\n");
-  CompPar(etp,(TrackPar*)trcO2);
+  CompPar(etp,(TrackParOnly*)trcO2);
   //CompPar(etp,trcO2);
   CompCov(etp,trcO2);
 
   printf("\nDifference for ParamOnly propagation\n");
   CompPar(etpp,trpO2);
+  //
+  delete trpO2;
+  printf("here 0\n");
+  delete trcO2;
+  printf("here 1\n");
+  delete etp;
+  printf("here 2\n");
+  delete etpp;
+  printf("here 3\n");
 
+  TrackParCov* xx = new TrackParCov();
+  TrackParOnly* xx0 = new TrackParOnly(*xx);
+  xx->Print();
+  xx0->Print();
+  delete xx0;
+  delete xx;
 }
 
 void CompPar(const AliExternalTrackParam* etpar,const TrackPar* tp)
 {
   printf("DiffParam: dX: %+.3e dAlp: %+.3e | DPar: ",etpar->GetX()-tp->GetX(),etpar->GetAlpha()-tp->GetAlpha());
-  for (int i=0;i<5;i++) printf("%+.3e ",etpar->GetParameter()[i]-(*tp)[i+2]);
+  for (int i=0;i<5;i++) printf("%+.3e ",etpar->GetParameter()[i]-tp->GetParam()[i]);
   printf("\n");
   float xyzF[3];
   double xyzD[3];
@@ -170,7 +185,7 @@ void CompCov(const AliExternalTrackParam* etpar,const TrackParCov* tp)
   int cnt=0;
   for (int i=0;i<5;i++) {
     for (int j=0;j<=i;j++) {
-      printf("%+.3e ",etpar->GetCovariance()[cnt]-(*tp)[7+cnt]);
+      printf("%+.3e ",etpar->GetCovariance()[cnt]-tp->GetCov()[cnt]);
       cnt++;
     }
     printf("\n");
