@@ -6,7 +6,7 @@ const float Track::TrackParCov::kCalcdEdxAuto = -999.f;
 
 //______________________________________________________________
 Track::TrackParBase::TrackParBase(const float xyz[3],const float pxpypz[3], int charge, bool sectorAlpha) :
-  mX(0.f),mAlpha(0.f)
+  mX{0.f},mAlpha{0.f}
 {
   // construct track param from kinematics
 
@@ -1055,7 +1055,7 @@ void Track::TrackParBase::g3helx3(float qfield, float step,float vect[7])
  *                                                                *
  ******************************************************************/
   const int ix=0, iy=1, iz=2, ipx=3, ipy=4, ipz=5, ipp=6;
-  const float kOvSqSix=sqrtf(1./6.);
+  constexpr float kOvSqSix=sqrtf(1./6.);
 
   float cosx=vect[ipx], cosy=vect[ipy], cosz=vect[ipz];
 
