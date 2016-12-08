@@ -97,7 +97,8 @@ void testR6()
   //
   printf("\nDifference between full and param-only back-propagation\n");
   CompPar(trpO2.get(),trcO2.get());
-
+  //
+  printf("Sizes of TrackPar: %lu TrackParCov: %lu bytes\n",sizeof(TrackPar),sizeof(TrackParCov));
 }
 
 void CompPar(const TrackParBase* t0,const TrackParBase* t1)
