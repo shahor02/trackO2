@@ -67,7 +67,7 @@ void test()
 
     if (cnt%3==0) {
       double measD[2] = {etp->GetY()+TMath::Sqrt(measErrD[0]),etp->GetZ()+TMath::Sqrt(measErrD[2])};
-      float  measF[2] = {etp->GetY()+TMath::Sqrt(measErrF[0]),etp->GetZ()+TMath::Sqrt(measErrF[2])};
+      float  measF[2] = {static_cast<float>(etp->GetY()+TMath::Sqrt(measErrF[0])),static_cast<float>(etp->GetZ()+TMath::Sqrt(measErrF[2]))};
       chi0 += trcO2->GetPredictedChi2(measF,measErrF);
       chi3 += etp->GetPredictedChi2(measD,measErrD);
       if (!trcO2->Update(measF,measErrF))  {printf("[0] Fail on update. %f\n",x); exit(1);}
