@@ -36,7 +36,7 @@ namespace AliceO2 {
 	kC1Pt2max=100*100; // Sigma1/Pt<=100 1/GeV
       
       
-      class TrackPar { // track parameterization, kinematics only
+      class TrackParBase { // track parameterization, kinematics only. This base class cannot be instantiated
       public:
 
 	const float* GetParam()              const { return mP; }
@@ -70,12 +70,12 @@ namespace AliceO2 {
 
       protected:
 	// to keep this class non-virtual but derivable the c-tors and d-tor are protected
-        TrackPar() : mX(0),mAlpha(0) {memset(mP,0,kNParams*sizeof(float));}
-	TrackPar(float x,float alpha, const float par[kNParams]);
-	TrackPar(const float xyz[3],const float pxpypz[3],int sign, bool sectorAlpha=true);
-	TrackPar(const TrackPar& src);
-	~TrackPar() {}
-	TrackPar& operator=(const TrackPar& src);
+        TrackParBase() : mX(0),mAlpha(0) {memset(mP,0,kNParams*sizeof(float));}
+	TrackParBase(float x,float alpha, const float par[kNParams]);
+	TrackParBase(const float xyz[3],const float pxpypz[3],int sign, bool sectorAlpha=true);
+	TrackParBase(const TrackParBase& src);
+	~TrackParBase() {}
+	TrackParBase& operator=(const TrackParBase& src);
 	//
 	static void g3helx3(float qfield, float step,float vect[7]);
 	
@@ -86,7 +86,7 @@ namespace AliceO2 {
       };
 
       // rootcint does not swallow final keyword here
-      class TrackParCov /*final*/ : public TrackPar { // track+error parameterization
+      class TrackParCov /*final*/ : public TrackParBase { // track+error parameterization
       public:
 	TrackParCov() { memset(mC,0,kCovMatSize*sizeof(float)); }
 	TrackParCov(float x,float alpha, const float par[kNParams], const float cov[kCovMatSize]);
@@ -134,40 +134,40 @@ namespace AliceO2 {
 	static const float kCalcdEdxAuto; // value indicating request for dedx calculation
       };
 
-      class TrackParOnly final : public TrackPar { // track parameterization only
+      class TrackPar /*final*/ : public TrackParBase { // track parameterization only
       public:
-	TrackParOnly() {}
-        TrackParOnly(float x,float alpha, const float par[kNParams]) : TrackPar(x,alpha,par) {}
-        TrackParOnly(const float xyz[3],const float pxpypz[3],int sign, bool sectorAlpha=true) : TrackPar(xyz,pxpypz,sign,sectorAlpha) {}
-        TrackParOnly(const TrackParOnly& src) : TrackPar(src) {}
-        TrackParOnly(const TrackParCov& src) : TrackPar((const TrackPar&)src) {}
-	~TrackParOnly() {}
-	TrackParOnly& operator=(const TrackParOnly& src) {TrackPar::operator=((const TrackPar&)src); return *this;}
+	TrackPar() {}
+        TrackPar(float x,float alpha, const float par[kNParams]) : TrackParBase(x,alpha,par) {}
+        TrackPar(const float xyz[3],const float pxpypz[3],int sign, bool sectorAlpha=true) : TrackParBase(xyz,pxpypz,sign,sectorAlpha) {}
+        TrackPar(const TrackPar& src) : TrackParBase(src) {}
+        TrackPar(const TrackParCov& src) : TrackParBase((const TrackParBase&)src) {}
+	~TrackPar() {}
+	TrackPar& operator=(const TrackPar& src) {TrackParBase::operator=((const TrackParBase&)src); return *this;}
 	//
 	void  Print() const {PrintParam();}
       };
 
       //____________________________________________________________
-      inline TrackPar::TrackPar(float x, float alpha, const float par[kNParams]) : mX(x), mAlpha(alpha) {
+      inline TrackParBase::TrackParBase(float x, float alpha, const float par[kNParams]) : mX(x), mAlpha(alpha) {
 	// explicit constructor
 	memcpy(mP,par,kNParams*sizeof(float));
       }
 
       //____________________________________________________________
-      inline TrackPar::TrackPar(const TrackPar& src) : mX(src.mX), mAlpha(src.mAlpha) {
+      inline TrackParBase::TrackParBase(const TrackParBase& src) : mX(src.mX), mAlpha(src.mAlpha) {
 	// copy c-tor
 	memcpy(mP,src.mP,kNParams*sizeof(float));
       }
 
       //____________________________________________________________
-      inline TrackPar& TrackPar::operator=(const TrackPar& src) {
+      inline TrackParBase& TrackParBase::operator=(const TrackParBase& src) {
 	// assignment operator
-	if (this!=&src) memcpy(this,&src,sizeof(TrackPar));
+	if (this!=&src) memcpy(this,&src,sizeof(TrackParBase));
 	return *this;
       }
       
       //_______________________________________________________
-      inline void TrackPar::GetXYZ(float xyz[3]) const {
+      inline void TrackParBase::GetXYZ(float xyz[3]) const {
 	// track coordinates in lab frame
 	xyz[0] = GetX(); 
 	xyz[1] = GetY();
@@ -176,21 +176,21 @@ namespace AliceO2 {
       }
 
       //_______________________________________________________
-      inline float TrackPar::GetPhiPos() const {
+      inline float TrackParBase::GetPhiPos() const {
 	// angle of track position
 	float xy[2]={GetX(),GetY()};
 	return atan2(xy[1],xy[0]);
       }
 
       //____________________________________________________________
-      inline float TrackPar::GetP() const {
+      inline float TrackParBase::GetP() const {
 	// return the track momentum
 	float ptI = fabs(GetQ2Pt());
 	return (ptI>kAlmost0) ? sqrtf(1.f+ GetTgl()*GetTgl())/ptI : kVeryBig;
       }
 
       //____________________________________________________________
-      inline float TrackPar::GetPt() const {
+      inline float TrackParBase::GetPt() const {
 	// return the track transverse momentum
 	float ptI = fabs(GetQ2Pt());
 	return (ptI>kAlmost0) ? 1.f/ptI : kVeryBig;
@@ -199,13 +199,13 @@ namespace AliceO2 {
       //============================================================
 
       //____________________________________________________________
-      inline TrackParCov::TrackParCov(float x, float alpha, const float par[kNParams], const float cov[kCovMatSize]) : TrackPar(x,alpha,par) {
+      inline TrackParCov::TrackParCov(float x, float alpha, const float par[kNParams], const float cov[kCovMatSize]) : TrackParBase(x,alpha,par) {
 	// explicit constructor
 	memcpy(mC,cov,kCovMatSize*sizeof(float));
       }
 
       //____________________________________________________________
-      inline TrackParCov::TrackParCov(const TrackParCov& src) : TrackPar(src) {
+      inline TrackParCov::TrackParCov(const TrackParCov& src) : TrackParBase(src) {
 	// copy c-tor
 	memcpy(mC,src.GetCov(),sizeof(kCovMatSize));
       }

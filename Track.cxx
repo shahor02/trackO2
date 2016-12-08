@@ -5,7 +5,7 @@ using namespace AliceO2::Base;
 const float Track::TrackParCov::kCalcdEdxAuto = -999.f;
 
 //______________________________________________________________
-Track::TrackPar::TrackPar(const float xyz[3],const float pxpypz[3], int charge, bool sectorAlpha) :
+Track::TrackParBase::TrackParBase(const float xyz[3],const float pxpypz[3], int charge, bool sectorAlpha) :
   mX(0.f),mAlpha(0.f)
 {
   // construct track param from kinematics
@@ -60,7 +60,7 @@ Track::TrackPar::TrackPar(const float xyz[3],const float pxpypz[3], int charge, 
 
 
 //_______________________________________________________      
-bool Track::TrackPar::GetPxPyPz(float pxyz[3]) const 
+bool Track::TrackParBase::GetPxPyPz(float pxyz[3]) const 
 {
   // track momentum
   if (fabs(GetQ2Pt())<kAlmost0 || fabs(GetSnp())>kAlmost1) return false;
@@ -74,7 +74,7 @@ bool Track::TrackPar::GetPxPyPz(float pxyz[3]) const
 }
 
 //____________________________________________________
-bool Track::TrackPar::GetPosDir(float posdirp[9]) const
+bool Track::TrackParBase::GetPosDir(float posdirp[9]) const
 {
   // fill vector with lab x,y,z,px/p,py/p,pz/p,p,sinAlpha,cosAlpha
   float ptI = fabs(GetQ2Pt());
@@ -97,7 +97,7 @@ bool Track::TrackPar::GetPosDir(float posdirp[9]) const
 
 
 //______________________________________________________________
-bool Track::TrackPar::RotateParam(float alpha)
+bool Track::TrackParBase::RotateParam(float alpha)
 {
   // rotate to alpha frame
   if (fabs(GetSnp()) > kAlmost1) {
@@ -135,7 +135,7 @@ bool Track::TrackPar::RotateParam(float alpha)
 
 
 //____________________________________________________________
-bool Track::TrackPar::PropagateParamTo(float xk, const float b[3])
+bool Track::TrackParBase::PropagateParamTo(float xk, const float b[3])
 {
   //----------------------------------------------------------------
   // Extrapolate this track params (w/o cov matrix) to the plane X=xk in the field b[].
@@ -236,7 +236,7 @@ bool Track::TrackPar::PropagateParamTo(float xk, const float b[3])
 }
 
 //____________________________________________________________
-bool Track::TrackPar::PropagateParamTo(float xk, float b) 
+bool Track::TrackParBase::PropagateParamTo(float xk, float b) 
 {
   //----------------------------------------------------------------
   // Propagate this track to the plane X=xk (cm) in the field "b" (kG)
@@ -279,7 +279,7 @@ bool Track::TrackPar::PropagateParamTo(float xk, float b)
 }
 
 //______________________________________________________________
-void Track::TrackPar::InvertParam() 
+void Track::TrackParBase::InvertParam() 
 {
   // Transform this track to the local coord. system rotated by 180 deg. 
   mX = -mX;
@@ -293,7 +293,7 @@ void Track::TrackPar::InvertParam()
 }
 
 //______________________________________________________________
-void Track::TrackPar::PrintParam() const
+void Track::TrackParBase::PrintParam() const
 {
   // print parameters
   printf("X:%+e Alp:%+e Par: %+e %+e %+e %+e %+e\n",GetX(),GetAlpha(),GetY(),GetZ(),GetSnp(),GetTgl(),GetQ2Pt());
@@ -712,7 +712,7 @@ bool Track::TrackParCov::PropagateTo(float xk, const float b[3])
 
   // Do the helix step
   float sgn = GetSign();
-  TrackPar::g3helx3(sgn*bb,step,vect);
+  g3helx3(sgn*bb,step,vect);
 
   // Rotate back to the Global System
   vecLab[0] = cosphi*costet*vect[0] - sinphi*vect[1] + cosphi*sintet*vect[2];
@@ -1035,7 +1035,7 @@ void Track::TrackParCov::Print() const
 //
 //=================================================
 
-void Track::TrackPar::g3helx3(float qfield, float step,float vect[7]) 
+void Track::TrackParBase::g3helx3(float qfield, float step,float vect[7]) 
 {
 /******************************************************************
  *                                                                *
