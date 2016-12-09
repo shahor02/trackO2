@@ -39,7 +39,12 @@ namespace AliceO2 {
         kCTgl2max=1*1,     // SigmaTan<=1
         kC1Pt2max=100*100; // Sigma1/Pt<=100 1/GeV
 
+      // helper function
+      float BetheBlochSolid(float bg, float rho=2.33f,float kp1=0.20f,float kp2=3.00f,
+			    float meanI=173e-9f,float meanZA=0.49848f);
+      void g3helx3(float qfield, float step,float vect[7]);
 
+      
       class TrackParBase { // track parameterization, kinematics only. This base class cannot be instantiated
         public:
 
@@ -82,8 +87,6 @@ namespace AliceO2 {
           TrackParBase& operator=(const TrackParBase& src) = default;
           ~TrackParBase() = default;
           //
-          static void g3helx3(float qfield, float step,float vect[7]);
-
           float mX;               /// X of track evaluation
           float mAlpha;           /// track frame angle
           float mP[kNParams];     /// 5 parameters: Y,Z,sin(phi),tg(lambda),q/pT
@@ -139,7 +142,7 @@ namespace AliceO2 {
         public:
           TrackPar() {}
           TrackPar(float x,float alpha, const float par[kNParams]) : TrackParBase{x,alpha,par} {}
-          TrackPar(const float xyz[3],const float pxpypz[3],int sign, bool sectorAlpha=true) : TrackParBase{xyz,pxpypz,sign,sectorAlpha} {}
+          TrackPar(const float xyz[3], const float pxpypz[3],int sign, bool sectorAlpha=true);
           TrackPar(const TrackParCov& src) : TrackParBase{static_cast<const TrackParBase&>(src)} {}
           //
           void  Print() const {PrintParam();}
@@ -184,11 +187,20 @@ namespace AliceO2 {
       //============================================================
 
       //____________________________________________________________
-      inline TrackParCov::TrackParCov(float x, float alpha, const float par[kNParams], const float cov[kCovMatSize]) : TrackParBase{x,alpha,par} {
+      inline TrackParCov::TrackParCov(float x, float alpha, const float par[kNParams], const float cov[kCovMatSize])
+	: TrackParBase{x,alpha,par} {
         // explicit constructor
         std::copy(cov, cov + kCovMatSize, mC);
       }
 
+      //============================================================
+
+      //____________________________________________________________
+      inline TrackPar::TrackPar(const float xyz[3], const float pxpypz[3],int sign, bool sectorAlpha)
+	: TrackParBase{xyz,pxpypz,sign,sectorAlpha} {
+        // explicit constructor
+      }
+      
     }  
   }
 }

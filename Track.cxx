@@ -2,11 +2,11 @@
 
 using namespace AliceO2::Base;
 
-const float Track::TrackParCov::kCalcdEdxAuto = -999.f;
+constexpr float Track::TrackParCov::kCalcdEdxAuto = -999.f;
 
 //______________________________________________________________
 Track::TrackParBase::TrackParBase(const float xyz[3],const float pxpypz[3], int charge, bool sectorAlpha) :
-  mX{0.f},mAlpha{0.f}
+  mX{0.f},mAlpha{0.f},mP{0.f}
 {
   // construct track param from kinematics
 
@@ -16,7 +16,7 @@ Track::TrackParBase::TrackParBase(const float xyz[3],const float pxpypz[3], int 
   //                           angle of pt direction for r==0
   //
   //
-  const float kSafe = 1e-5f;
+  constexpr float kSafe = 1e-5f;
   float radPos2 = xyz[0]*xyz[0]+xyz[1]*xyz[1];  
   float alp = 0;
   if (sectorAlpha || radPos2<1) alp = atan2f(pxpypz[1],pxpypz[0]);
@@ -474,7 +474,7 @@ Track::TrackParCov::TrackParCov(const float xyz[3],const float pxpypz[3],
   //                           angle of pt direction for r==0
   //
   //
-  const float kSafe = 1e-5f;
+  constexpr float kSafe = 1e-5f;
   float radPos2 = xyz[0]*xyz[0]+xyz[1]*xyz[1];  
   float alp = 0;
   if (sectorAlpha || radPos2<1) alp = atan2f(pxpypz[1],pxpypz[0]);
@@ -484,14 +484,14 @@ Track::TrackParCov::TrackParCov(const float xyz[3],const float pxpypz[3],
   float sn,cs; 
   sincosf(alp,sn,cs);
   // protection:  avoid alpha being too close to 0 or +-pi/2
-  if (fabs(sn)<2*kSafe) {
-    if (alp>0) alp += alp< kPIHalf ?  2*kSafe : -2*kSafe;
-    else       alp += alp>-kPIHalf ? -2*kSafe :  2*kSafe;
+  if (fabs(sn)<2.f*kSafe) {
+    if (alp>0) alp += alp< kPIHalf ?  2.f*kSafe : -2.f*kSafe;
+    else       alp += alp>-kPIHalf ? -2.f*kSafe :  2.f*kSafe;
     sincosf(alp,sn,cs);
   }
-  else if (fabs(cs)<2*kSafe) {
-    if (alp>0) alp += alp> kPIHalf ? 2*kSafe : -2*kSafe;
-    else       alp += alp>-kPIHalf ? 2*kSafe : -2*kSafe;
+  else if (fabs(cs)<2.f*kSafe) {
+    if (alp>0) alp += alp> kPIHalf ? 2.f*kSafe : -2.f*kSafe;
+    else       alp += alp>-kPIHalf ? 2.f*kSafe : -2.f*kSafe;
     sincosf(alp,sn,cs);
   }
   // Get the vertex of origin and the momentum
@@ -512,8 +512,8 @@ Track::TrackParCov::TrackParCov(const float xyz[3],const float pxpypz[3],
   mP[kTgl]   = mom[2]*ptI; // tg(lambda)
   mP[kQ2Pt]  = ptI*charge;
   //
-  if      (fabs( 1-GetSnp()) < kSafe) mP[kSnp] = 1.- kSafe; //Protection
-  else if (fabs(-1-GetSnp()) < kSafe) mP[kSnp] =-1.+ kSafe; //Protection
+  if      (fabs( 1.f-GetSnp()) < kSafe) mP[kSnp] = 1.f- kSafe; //Protection
+  else if (fabs(-1.f-GetSnp()) < kSafe) mP[kSnp] =-1.f+ kSafe; //Protection
   //
   // Covariance matrix (formulas to be simplified)
   float r=mom[0]*ptI;  // cos(phi)
@@ -930,9 +930,9 @@ bool Track::TrackParCov::CorrectForMaterial(float x2x0,  float xrho, float mass,
   // "dedx" - mean enery loss (GeV/(g/cm^2), if <=kCalcdEdxAuto : calculate on the fly
   // "anglecorr" - switch for the angular correction
   //------------------------------------------------------------------
-  const float kMSConst2 = 0.0136f*0.0136f;
-  const float kMaxELossFrac = 0.3f; // max allowed fractional eloss
-  const float kMinP = 0.01f;        // kill below this momentum
+  constexpr float kMSConst2 = 0.0136f*0.0136f;
+  constexpr float kMaxELossFrac = 0.3f; // max allowed fractional eloss
+  constexpr float kMinP = 0.01f;        // kill below this momentum
   float &fP2 = mP[kSnp];
   float &fP3 = mP[kTgl];
   float &fP4 = mP[kQ2Pt];
@@ -981,7 +981,7 @@ bool Track::TrackParCov::CorrectForMaterial(float x2x0,  float xrho, float mass,
   if ((xrho != 0.f) && (beta2 < 1.f)) {
     if (dedx<kCalcdEdxAuto+kAlmost1) { // request to calculate dedx on the fly
       dedx = BetheBlochSolid(p/fabs(mass));
-      if (mass<0) dedx *= 4;  // z=2 particle
+      if (mass<0) dedx *= 4.f;  // z=2 particle
     }
 
     float dE = dedx*xrho;
@@ -993,7 +993,7 @@ bool Track::TrackParCov::CorrectForMaterial(float x2x0,  float xrho, float mass,
     cP4 = p/sqrtf(pupd2);
     //
     // Approximate energy loss fluctuation (M.Ivanov)
-    const float knst=0.07; // To be tuned.  
+    constexpr float knst=0.07f; // To be tuned.  
     float sigmadE = knst*sqrtf(fabs(dE))*e/p2*fP4;
     cC44 += sigmadE*sigmadE;
   }
@@ -1035,7 +1035,7 @@ void Track::TrackParCov::Print() const
 //
 //=================================================
 
-void Track::TrackParBase::g3helx3(float qfield, float step,float vect[7]) 
+void Track::g3helx3(float qfield, float step,float vect[7]) 
 {
 /******************************************************************
  *                                                                *
@@ -1055,7 +1055,7 @@ void Track::TrackParBase::g3helx3(float qfield, float step,float vect[7])
  *                                                                *
  ******************************************************************/
   const int ix=0, iy=1, iz=2, ipx=3, ipy=4, ipz=5, ipp=6;
-  constexpr float kOvSqSix=sqrtf(1./6.);
+  constexpr float kOvSqSix=0.408248f; //sqrtf(1./6.);
 
   float cosx=vect[ipx], cosy=vect[ipy], cosz=vect[ipz];
 
@@ -1089,4 +1089,39 @@ void Track::TrackParBase::g3helx3(float qfield, float step,float vect[7])
   vect[ipx] += f4*cosx - f5*cosy;
   vect[ipy] += f4*cosy + f5*cosx;  
 
+}
+
+//____________________________________________________
+float Track::BetheBlochSolid(float bg, float rho,float kp1,float kp2,float meanI,float meanZA)
+{
+  //
+  // This is the parameterization of the Bethe-Bloch formula inspired by Geant.
+  //
+  // bg  - beta*gamma
+  // rho - density [g/cm^3]
+  // kp1 - density effect first junction point
+  // kp2 - density effect second junction point
+  // meanI - mean excitation energy [GeV]
+  // meanZA - mean Z/A
+  //
+  // The default values for the kp* parameters are for silicon. 
+  // The returned value is in [GeV/(g/cm^2)].
+  // 
+  constexpr float mK  = 0.307075e-3f; // [GeV*cm^2/g]
+  constexpr float me  = 0.511e-3f;    // [GeV/c^2]
+  kp1 *= 2.303f;
+  kp2 *= 2.303f;
+  float bg2 = bg*bg;
+  float maxT= 2.f*me*bg2;    // neglecting the electron mass
+	
+  //*** Density effect
+  float d2=0.; 
+  const float x = log(bg);
+  const float lhwI = log(28.816*1e-9*sqrtf(rho*meanZA)/meanI);
+  if (x > kp2) d2 = lhwI + x - 0.5;
+  else if (x > kp1) {
+    double r=(kp2-x)/(kp2-kp1);
+    d2 = lhwI + x - 0.5 + (0.5 - lhwI - kp1)*r*r*r;
+  }	
+  return mK*meanZA*(1+bg2)/bg2*(0.5*log(2*me*bg2*maxT/(meanI*meanI)) - bg2/(1+bg2) - d2);
 }

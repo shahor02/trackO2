@@ -9,21 +9,21 @@ namespace AliceO2 {
   namespace Base {
     namespace Constants {    
       
-      const float kAlmost0 = 1.17549e-38;
-      const float kAlmost1 = 1.f-kAlmost0;
-      const float kVeryBig = 1.f/kAlmost0;
+      constexpr float kAlmost0 = 1.17549e-38;
+      constexpr float kAlmost1 = 1.f-kAlmost0;
+      constexpr float kVeryBig = 1.f/kAlmost0;
 
-      const float kPI     = 3.14159274101257324e+00f;
-      const float k2PI    = 2.f*kPI;
-      const float kPIHalf = 0.5f*kPI;      
-      const float kRad2Deg = 180.f/kPI;
-      const float kDeg2Rad = kPI/180.f;
+      constexpr float kPI     = 3.14159274101257324e+00f;
+      constexpr float k2PI    = 2.f*kPI;
+      constexpr float kPIHalf = 0.5f*kPI;      
+      constexpr float kRad2Deg = 180.f/kPI;
+      constexpr float kDeg2Rad = kPI/180.f;
 
-      const int   kNSectors   = 18;
-      const float kSectorSpan = 360./kNSectors;
+      constexpr int   kNSectors   = 18;
+      constexpr float kSectorSpan = 360./kNSectors;
 
       // conversion from B(kGaus) to curvature for 1GeV pt
-      const float kB2C     = -0.299792458e-3;
+      constexpr float kB2C     = -0.299792458e-3;
 
     }
   }
