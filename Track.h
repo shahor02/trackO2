@@ -8,6 +8,7 @@
 #include <iostream>
 #include <algorithm>
 #include <string.h>
+#include <TObject.h>
 #include "Constants.h"
 #include "Utils.h"
 
@@ -90,6 +91,8 @@ namespace AliceO2 {
           float mX;               /// X of track evaluation
           float mAlpha;           /// track frame angle
           float mP[kNParams];     /// 5 parameters: Y,Z,sin(phi),tg(lambda),q/pT
+
+	  //	  ClassDefNV(TrackParBase,1)
       };
 
       // rootcint does not swallow final keyword here
@@ -136,6 +139,7 @@ namespace AliceO2 {
           float mC[kCovMatSize];  // x, alpha + 5 parameters + 15 errors
 
           static const float kCalcdEdxAuto; // value indicating request for dedx calculation
+	  //ClassDefNV(TrackParCov,1)
       };
 
       class TrackPar final : public TrackParBase { // track parameterization only
@@ -146,6 +150,7 @@ namespace AliceO2 {
           TrackPar(const TrackParCov& src) : TrackParBase{static_cast<const TrackParBase&>(src)} {}
           //
           void  Print() const {PrintParam();}
+	  //ClassDefNV(TrackPar,1)
       };
 
       //____________________________________________________________
