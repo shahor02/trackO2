@@ -9,7 +9,7 @@ TGT =	libTrackO2.so
 DICT=	trackO2Dict.cxx
 DICTO=	trackO2Dict.o
 
-SRC = 	Track.cxx
+SRC = 	Track.cxx TrackIO.cxx
 
 HDR =	$(SRC:.cxx=.h) Utils.h Constants.h
 
