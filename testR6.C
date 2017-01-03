@@ -1,8 +1,11 @@
 #include "Track.h"
+#include "TrackIO.h"
+#include "TFile.h"
 #include <math.h>
 #include <memory>
 
 using namespace AliceO2::Base::Track;
+using namespace AliceO2::Base::TrackIO;
 using namespace std;
 
 void CompPar(const TrackParBase* t0,const TrackParBase* t1);
@@ -99,6 +102,22 @@ void testR6()
   CompPar(trpO2.get(),trcO2.get());
   //
   printf("Sizes of TrackPar: %lu TrackParCov: %lu bytes\n",sizeof(TrackPar),sizeof(TrackParCov));
+  //
+  printf("doing output test>>\n");
+  unique_ptr<Track>  trcIO(new Track(*trcO2.get())); 
+  TFile* fout = TFile::Open("trcOut.root","recreate");
+  trcIO.get()->Write("trcIO");
+  fout->Close();
+  delete fout;
+  printf("Output test done>>\n");  
+  //
+  TFile* finp = TFile::Open("trcOut.root");
+  Track* trcInp = (Track*)finp->Get("trcIO");
+  finp->Close();
+  delete finp;
+  trcInp->Print();
+  printf("Input test done>>\n");  
+  //
 }
 
 void CompPar(const TrackParBase* t0,const TrackParBase* t1)
