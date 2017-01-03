@@ -112,10 +112,11 @@ void testR6()
   printf("Output test done>>\n");  
   //
   TFile* finp = TFile::Open("trcOut.root");
-  Track* trcInp = (Track*)finp->Get("trcIO");
+  
+  unique_ptr<Track>  trcIOr((Track*)finp->Get("trcIO"));
   finp->Close();
   delete finp;
-  trcInp->Print();
+  trcIOr.get()->Print();
   printf("Input test done>>\n");  
   //
 }
